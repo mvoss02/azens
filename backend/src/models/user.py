@@ -5,8 +5,8 @@ from sqlalchemy import Boolean, DateTime, Enum, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.core.database import Base
-from src.models.enums import Language, SeniorityLevel
+from core.database import Base
+from models.enums import Language, SeniorityLevel
 
 
 class User(Base):

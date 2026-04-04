@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-from src.core.config import settings as settings_db
+from core.config import settings as settings_db
 
 # Engine: One connection pool for whole application
 engine = create_async_engine(settings_db.database_url, echo=settings_db.debug)
