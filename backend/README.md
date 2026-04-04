@@ -1,7 +1,7 @@
 # Run FastAPI
 
 ```sh
-uv run uvicorn app.main:src --reload --port 8080
+uv run uvicorn src.main:app --reload --port 8080
 ```
 
 # Setting up DB
