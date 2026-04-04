@@ -17,6 +17,12 @@ docker run --name azens-db \
     -d postgres:16
 ```
 
+## Check users in DB
+
+```sh
+docker exec azens-db psql -U azens -d azens -c "SELECT id, email, full_name, is_admin FROM users;"
+```
+
 # Database Migrations (Alembic)
 
 ## Generate a new migration after changing models
