@@ -1,0 +1,62 @@
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── uv ────────────────────────────────────────────────────────────────────────
+# uv.lock is intentionally committed — it pins exact dependency versions
+# so every developer and CI run gets the exact same packages.
+.uv-cache/
+
+# ── Ruff cache ────────────────────────────────────────────────────────────────
+.ruff_cache/
+
+# ── Alembic ───────────────────────────────────────────────────────────────────
+backend/migrations/__pycache__/
+backend/migrations/versions/__pycache__/
+
+# ── Node / Angular ────────────────────────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+*.js.map
+
+# ── Angular build cache ───────────────────────────────────────────────────────
+.angular/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Claude ──────────────────────────────────────────────────────────────────────
+.claude/
+CLAUDE.md

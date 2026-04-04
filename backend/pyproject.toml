@@ -1,0 +1,61 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Backend for Azen Investment Helper"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.135.3",
+    "pydantic-settings>=2.13.1",
+    "sqlalchemy[asyncio]>=2.0.49",
+    "uvicorn>=0.42.0",
+]
+
+[tool.uv]
+package = true
+ 
+[tool.coverage.run]
+omit = [
+    "*/__version__.py",
+    "*/__init__.py",
+    "*/tests/*",
+]
+source = ["."]
+ 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+markers = [
+    "individual: marks tests that require the --run-individual flag"
+]
+ 
+[dependency-groups]
+test = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "ruff>=0.12.2",
+]
+ 
+[tool.ruff]
+line-length = 88
+lint.select = [
+    "C",  # mccabe rules
+    "F",  # pyflakes rules
+    "E",  # pycodestyle error rules
+    "W",  # pycodestyle warning rules
+    "B",  # flake8-bugbear rules
+    "I",  # isort rules
+]
+lint.ignore = [
+    "C901",  # max-complexity-10
+    "E501",  # line-too-long
+    "B904",  # except clause
+]
+ 
+[tool.ruff.format]
+indent-style = "space"
+quote-style = "single"
+ 
+[tool.ruff.lint.pydocstyle]
+convention = "google"
