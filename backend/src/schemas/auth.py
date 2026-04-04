@@ -1,3 +1,6 @@
+from uuid import UUID
+
+from models.enums import Language, SeniorityLevel
 from pydantic import BaseModel, EmailStr
 
 
@@ -14,3 +17,12 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     
+class UserResponse(BaseModel):
+    model_config = {'from_attributes': True}
+    
+    id: UUID
+    email: EmailStr
+    full_name: str | None
+    seniority_level: SeniorityLevel | None
+    preferred_language: Language | None
+    is_verified: bool

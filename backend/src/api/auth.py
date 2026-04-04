@@ -1,7 +1,10 @@
+from uuid import UUID
+
+from api.deps import get_current_user_id
 from fastapi import APIRouter, status, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from schemas.auth import TokenResponse, SignUp, LogIn
+from schemas.auth import TokenResponse, SignUp, LogIn, UserResponse
 from core.security import hash_password, create_access_token, verify_password
 from core.database import get_db
 from models.user import User
@@ -45,3 +48,16 @@ async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenRespons
     # 3. Create token and return
     token = create_access_token(str(existing_user.id))
     return TokenResponse(access_token=token)
+
+@router.get("/me", response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def me(user_id: UUID = Depends(get_current_user_id), db:AsyncSession = Depends(get_db)) -> UserResponse:
+    # 1. Get user profile from DB
+    result = await db.execute(select(User).where(User.id == user_id))
+
+    existing_user = result.scalar_one_or_none()
+    if not existing_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized")
+    
+    # 2. Return user
+    return existing_user
+    
