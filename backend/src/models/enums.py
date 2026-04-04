@@ -7,6 +7,7 @@ class SeniorityLevel(enum.Enum):
     ASSOCIATE = 'associate'
     VPANDABOVE = 'vp+'
 
+
 class Language(enum.Enum):
     DE = 'german'
     ES = 'spanish'
