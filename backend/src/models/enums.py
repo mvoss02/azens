@@ -14,3 +14,18 @@ class Language(enum.Enum):
     EN = 'english'
     IT = 'italian'
     NL = 'dutch'
+
+
+class Topic(enum.Enum):
+    DCF = 'dcf'
+    LBO = 'lbo' 
+    MA = 'ma'
+    ACCOUNTING = 'accounting'
+    VALUATION = 'valuation'
+    GENERAL = 'general'
+
+
+class Difficulty(enum.Enum):
+    EASY = 'easy'
+    MEDIUM = 'medium'
+    HARD = 'hard'

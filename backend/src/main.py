@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from api.auth import router as router_auth
+from api.admin import router as router_admin
 
 app = FastAPI(
     title='Azens FastAPI Swagger',
@@ -8,6 +9,8 @@ app = FastAPI(
 )
 
 app.include_router(router_auth, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(router_admin, prefix="/api/v1/admin", tags=["admin"])
+
 
 @app.get('/health')
 def get_health():

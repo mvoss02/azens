@@ -1,9 +1,13 @@
 from uuid import UUID
 
+from core.database import get_db
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from core.security import decode_token
+from models.user import User
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # HTTPBearer automatically reads the "Authorization: Bearer <token>" header
 # If the header is missing, it returns None (because auto_error=False)
@@ -30,3 +34,12 @@ Depends(bearer_scheme),
         )
 
     return UUID(user_id)
+
+async def get_admin_user_id(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),) -> UUID:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    return user_id
