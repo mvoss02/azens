@@ -1,14 +1,17 @@
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 import httpx
 from api.deps import get_current_user_id
 from fastapi import APIRouter, status, Depends, HTTPException
+from services.email import send_password_reset_email, send_verification_email
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from schemas.auth import TokenResponse, SignUp, LogIn, UserResponse
+from schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, TokenResponse, SignUp, LogIn, UserResponse
 from core.security import hash_password, create_access_token, verify_password
 from core.database import get_db
 from models.user import User
 from urllib.parse import urlencode
+import secrets
 from core.config import settings as settings_auth
 
 router = APIRouter()
@@ -25,11 +28,15 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
         email=new_user.email,
         hashed_password=hash_password(new_user.password),
         full_name=new_user.full_name,
+        verification_token=secrets.token_urlsafe(32)
     )
     db.add(user)
     await db.flush()  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
-
-    # 3. Create token and return
+    
+    # 3. Send a verification email
+    send_verification_email(user.email, user.verification_token)
+    
+    # 4. Create token and return
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
 
@@ -187,4 +194,58 @@ async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)) -> To
     # 3. Create token and return
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
+
+@router.get("/verify", status_code=status.HTTP_200_OK)
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)) -> dict:
+    # Find user by token
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid verification token")
+
+    # Mark as verified, clear the token
+    user.is_verified = True
+    user.verification_token = None
+
+    return {"message": "Email verified successfully"}
+
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    # Find user by email
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
     
+    if not user:
+        return {"message": "Password reset link sent"}
+    
+    # Generate reset token and expiry
+    reset_token = secrets.token_urlsafe(32)
+    reset_expires = datetime.now(UTC) + timedelta(hours=1)
+    
+    # Mark token and expiry
+    user.password_reset_token = reset_token
+    user.password_reset_expires = reset_expires
+    
+    # Send email
+    send_password_reset_email(to_email=user.email, token=reset_token)
+    
+    return {"message": "Password reset link sent"}
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)) -> dict:
+    # Find user by token
+    result = await db.execute(select(User).where(User.password_reset_token == body.token))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid reset token")
+    elif user.password_reset_expires < datetime.now(UTC):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Reset token expired")
+    
+    # Save new password, clear the token and expiry
+    user.hashed_password = hash_password(body.new_password)
+    user.password_reset_token = None
+    user.password_reset_expires = None
+
+    return {"message": "Password reset successfully"}

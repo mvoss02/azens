@@ -26,3 +26,10 @@ class UserResponse(BaseModel):
     seniority_level: SeniorityLevel | None
     preferred_language: Language | None
     is_verified: bool
+    
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

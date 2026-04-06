@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     # LINKEDIN AUTH
     linkedin_client_id: str
     linkedin_client_secret: str
+    
+    # EMAIL
+    smtp_host: str = "smtp-relay.brevo.com"
+    smtp_port: int = 587
+    smtp_user: str
+    smtp_password: str
+    smtp_from_email: str = "no-reply@azens.net"
+    frontend_url: str = "https://www.azens.net"
 
 
 settings = Settings()
