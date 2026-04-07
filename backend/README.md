@@ -54,3 +54,17 @@ alembic current
 ```sh
 alembic history
 ```
+
+# Upload Data to S3
+
+## With curl
+
+```sh
+# 1. Paste the URL into a file (no escaping needed in a text editor) - Get url from /cv/uploal-url endpoint
+pbpaste > /tmp/upload_url.txt
+
+# 2. Use it
+curl -X PUT "$(cat /tmp/upload_url.txt)" \
+-H "Content-Type: application/pdf" \
+--data-binary @/path/to/file
+```

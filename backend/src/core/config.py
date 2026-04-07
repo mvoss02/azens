@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     smtp_password: str
     smtp_from_email: str = "no-reply@azens.net"
     frontend_url: str = "https://www.azens.net"
+    
+    # AWS S3
+    aws_access_key: str
+    aws_secret_access_key: str
+    aws_region: str
+    aws_s3_bucket_name: str
 
 
 settings = Settings()

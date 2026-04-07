@@ -14,6 +14,10 @@ from models.question import (
     Question,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
 
+from models.cv import (
+    CV,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
