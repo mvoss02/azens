@@ -25,6 +25,8 @@ docker exec azens-db psql -U azens -d azens -c "SELECT id, email, full_name, is_
 
 # Database Migrations (Alembic)
 
+Add `uv run` to the commands.
+
 ## Generate a new migration after changing models
 
 ```sh
@@ -67,4 +69,14 @@ pbpaste > /tmp/upload_url.txt
 curl -X PUT "$(cat /tmp/upload_url.txt)" \
 -H "Content-Type: application/pdf" \
 --data-binary @/path/to/file
+```
+
+# Local Stripe testing
+
+Note: Dont forget to change wbehook secret and product ids to sandbox environment
+Test credit card: 4242 4242 4242 4242
+
+```sh
+stripe login
+stripe listen --api-key <SANDBOX_API_KEY> --forward-to localhost:8080/api/v1/billing/webhook
 ```

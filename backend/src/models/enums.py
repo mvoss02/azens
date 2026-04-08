@@ -29,3 +29,9 @@ class Difficulty(enum.Enum):
     EASY = 'easy'
     MEDIUM = 'medium'
     HARD = 'hard'
+
+
+class SubscriptionPlan(enum.Enum):
+    ANALYST = 'starter'
+    ASSOCIATE = 'pro'
+    MANAGING_DIRECTOR = 'elite'

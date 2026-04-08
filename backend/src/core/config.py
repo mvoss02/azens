@@ -40,5 +40,17 @@ class Settings(BaseSettings):
     aws_region: str
     aws_s3_bucket_name: str
 
+    # STRIPE
+    stripe_api_key: str
+    stripe_webhook_secret: str
+    
+    stripe_price_analyst_monthly: str
+    stripe_price_analyst_yearly: str
+        
+    stripe_price_associate_monthly: str
+    stripe_price_associate_yearly: str
+
+    stripe_price_managing_director_monthly: str
+    stripe_price_managing_director_yearly: str
 
 settings = Settings()
