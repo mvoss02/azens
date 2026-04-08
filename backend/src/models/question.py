@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, func, Integer, Text
+from sqlalchemy import Boolean, DateTime, Enum, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
-from models.enums import Language, SeniorityLevel, Topic, Difficulty
+from models.enums import Difficulty, Language, SeniorityLevel, Topic
 
 
 class Question(Base):
@@ -16,7 +16,7 @@ class Question(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    
+
     question: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
     topic: Mapped[Topic] = mapped_column(Enum(Topic), nullable=False)
@@ -36,5 +36,5 @@ class Question(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )
-    
+
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

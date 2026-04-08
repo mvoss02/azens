@@ -1,6 +1,8 @@
 import uuid
+
 import boto3
 from botocore.config import Config
+
 from core.config import settings as settings_blob
 
 s3_client = boto3.client(
@@ -32,7 +34,7 @@ def generate_download_url(s3_key: str) -> str:
     url = s3_client.generate_presigned_url(
         'get_object',
         Params={
-            'Bucket': settings_blob.aws_s3_bucket_name, 
+            'Bucket': settings_blob.aws_s3_bucket_name,
             'Key': s3_key
         },
         ExpiresIn=300,

@@ -1,13 +1,20 @@
-from uuid import UUID
-from api.deps import get_current_user_id
-from fastapi import APIRouter, status, Depends, HTTPException
-from models.cv import CV
-from schemas.cv import CVResponse, ConfirmUploadRequest, UploadUrlRequest, UploadUrlResponse
-from services.s3 import delete_object, generate_upload_url
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from core.database import get_db
 import re
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.deps import get_current_user_id
+from core.database import get_db
+from models.cv import CV
+from schemas.cv import (
+    ConfirmUploadRequest,
+    CVResponse,
+    UploadUrlRequest,
+    UploadUrlResponse,
+)
+from services.s3 import delete_object, generate_upload_url
 
 router = APIRouter()
 
@@ -22,23 +29,23 @@ async def upload_url(body: UploadUrlRequest, user_id: UUID = Depends(get_current
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid file extension - Upload PDF")
     if body.file_size > (5 * 1024 * 1024): # max 5MB
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="File size too large - Max 5MB")
-    
+
     url, s3_key = generate_upload_url(user_id, body.filename)
     return UploadUrlResponse(upload_url=url, s3_key=s3_key)
 
 
 @router.post("/confirm", response_model=CVResponse, status_code=status.HTTP_200_OK)
-async def confirm(body: ConfirmUploadRequest, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> CVResponse:    
+async def confirm(body: ConfirmUploadRequest, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> CVResponse:
     # Deactivate any previos active CV
     result = await db.execute(select(CV).where(CV.user_id == user_id))
     all_cvs = result.scalars().all()
-    
+
     if len(all_cvs) >= 3:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Max 3 CVs allowed")
     elif all_cvs:
         for cv in all_cvs:
             cv.is_active = False
-    
+
     # Create new CV Record
     cv_record = CV(
         user_id = user_id,
@@ -46,14 +53,14 @@ async def confirm(body: ConfirmUploadRequest, user_id: UUID = Depends(get_curren
         filename = _sanitize_filename(body.filename),
         file_size = body.file_size,
     )
-    
+
     # Add new record
     db.add(cv_record)
     await db.flush()
     await db.refresh(cv_record)  # re-reads the object from DB, including updated_at
-    
+
     return cv_record
-    
+
 
 @router.get("/cvs", response_model=list[CVResponse], status_code=status.HTTP_200_OK)
 async def get_cvs(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> CVResponse:
@@ -66,10 +73,10 @@ async def get_cvs(user_id: UUID = Depends(get_current_user_id), db: AsyncSession
 async def activate_cv(cv_id: UUID, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CV).where(CV.id == cv_id, CV.user_id == user_id))
     target_cv = result.scalar_one_or_none()
-    
+
     if not target_cv:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="CV not found")
-    
+
     result = await db.execute(select(CV).where(CV.user_id == user_id, CV.is_active == True))
     for cv in result.scalars().all():
         cv.is_active = False
@@ -85,9 +92,9 @@ async def activate_cv(cv_id: UUID, user_id: UUID = Depends(get_current_user_id),
 async def delete_cv(cv_id: UUID, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CV).where(CV.id == cv_id, CV.user_id == user_id))
     deleted_cv = result.scalar_one_or_none()
-    
+
     if not deleted_cv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="CV not found")
-    
+
     delete_object(deleted_cv.s3_key)
     await db.delete(deleted_cv)

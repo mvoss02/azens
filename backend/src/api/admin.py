@@ -1,12 +1,14 @@
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from api.deps import get_admin_user_id
-from fastapi import APIRouter, status, Depends, HTTPException
+from core.database import get_db
 from models.enums import Difficulty, Language, SeniorityLevel, Topic
 from models.question import Question
 from schemas.admin import QuestionRequest, QuestionResponse, QuestionUpdate
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from core.database import get_db
 
 router = APIRouter()
 
@@ -21,7 +23,7 @@ async def get_questions(seniority_level: SeniorityLevel | None = None, language:
         query = query.where(Question.topic == topic)
     if difficulty:
         query = query.where(Question.difficulty == difficulty)
-    
+
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -37,10 +39,10 @@ async def post_questions(body: QuestionRequest, admin_id: UUID = Depends(get_adm
 async def update_questions(question_id: UUID, body: QuestionUpdate, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Question).where(Question.id == question_id))
     question = result.scalar_one_or_none()
-    
+
     if not question:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Question not found")
-    
+
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
 
@@ -52,8 +54,8 @@ async def update_questions(question_id: UUID, body: QuestionUpdate, admin_id: UU
 async def delete_questions(question_id: UUID, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Question).where(Question.id == question_id))
     question = result.scalar_one_or_none()
-    
+
     if not question:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Question not found")
-    
+
     await db.delete(question)

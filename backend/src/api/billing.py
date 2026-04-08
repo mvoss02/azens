@@ -1,16 +1,18 @@
 from datetime import UTC, datetime
 from uuid import UUID
+
+import stripe
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from api.deps import get_current_user_id
-from fastapi import APIRouter, Request, status, Depends, HTTPException
+from core.config import settings as settings_billing
+from core.database import get_db
 from models.enums import SubscriptionPlan
 from models.subscription import Subscription
-from schemas.billing import CheckoutRequest, SubscriptionResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from core.database import get_db
 from models.user import User
-from core.config import settings as settings_billing
-import stripe
+from schemas.billing import CheckoutRequest, SubscriptionResponse
 
 stripe.api_key = settings_billing.stripe_api_key
 router = APIRouter()
@@ -18,10 +20,10 @@ router = APIRouter()
 PRICE_TO_PLAN = {
     settings_billing.stripe_price_analyst_monthly: SubscriptionPlan.ANALYST,
     settings_billing.stripe_price_analyst_yearly: SubscriptionPlan.ANALYST,
-    
+
     settings_billing.stripe_price_associate_monthly: SubscriptionPlan.ASSOCIATE,
     settings_billing.stripe_price_associate_yearly: SubscriptionPlan.ASSOCIATE,
-    
+
     settings_billing.stripe_price_managing_director_monthly: SubscriptionPlan.MANAGING_DIRECTOR,
     settings_billing.stripe_price_managing_director_yearly: SubscriptionPlan.MANAGING_DIRECTOR
 }
@@ -33,10 +35,10 @@ async def checkout(body: CheckoutRequest, user_id: UUID = Depends(get_current_us
     #    3D Secure, PCI compliance, everything. You never touch card numbers.
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    
+
     session = stripe.checkout.Session.create(
         mode='subscription',
         customer_email=user.email,
@@ -61,17 +63,17 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         user_id = session['metadata']['user_id']
-        
+
         # Get price ids and payment interval
         stripe_sub = stripe.Subscription.retrieve(session['subscription'])
         price_id = stripe_sub['items']['data'][0]['price']['id']
         interval = stripe_sub['items']['data'][0]['price']['recurring']['interval']
         period_end = stripe_sub['items']['data'][0]['current_period_end']
-        
+
         # Create/update subscription record in your DB
         result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
         sub = result.scalar_one_or_none()
-        
+
         if not sub:
             # Create subscription
             new_sub = Subscription(
@@ -93,16 +95,16 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             sub.stripe_subscription_id = session['subscription']
             sub.billing_cycle = interval
             sub.current_period_end=datetime.fromtimestamp(period_end, tz=UTC)
-    
+
     elif event['type'] == 'customer.subscription.updated':
         stripe_sub = event['data']['object']
         period_end = stripe_sub['items']['data'][0]['current_period_end']
         result = await db.execute(select(Subscription).where(Subscription.stripe_subscription_id == stripe_sub['id']))
         sub = result.scalar_one_or_none()
-        
+
         if not sub:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Subscription not found")
-            
+
         if stripe_sub.get('cancel_at_period_end'):
             # User cancelled — still active until period end
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
@@ -118,11 +120,11 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             select(Subscription).where(Subscription.stripe_subscription_id == stripe_sub['id'])
         )
         sub = result.scalar_one_or_none()
-      
+
         # Mark sub as inactive
         if not sub:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Subscription not found")
-        
+
         sub.plan = None
         sub.is_active = False
 
@@ -137,7 +139,7 @@ async def subscription(user_id: UUID = Depends(get_current_user_id), db: AsyncSe
 async def portal(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> dict:
     result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
     sub = result.scalar_one_or_none()
-    
+
     if not sub:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Subscription not found")
 

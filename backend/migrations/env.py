@@ -7,19 +7,26 @@ from sqlalchemy.pool import NullPool
 
 from core.config import settings
 from core.database import Base
-from models.user import (
-    User,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+from models.cv import (
+    CV,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
+from models.feedback import (
+    Feedback,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
 from models.question import (
     Question,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
-
-from models.cv import (
-    CV,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+from models.session import (
+    Session,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
-
 from models.subscription import (
     Subscription,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
+from models.transcript import (
+    Transcript,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
+from models.user import (
+    User,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
 
 # this is the Alembic Config object, which provides

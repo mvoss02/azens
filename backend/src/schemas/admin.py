@@ -2,7 +2,9 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
-from models.enums import Topic, Difficulty, SeniorityLevel, Language
+
+from models.enums import Difficulty, Language, SeniorityLevel, Topic
+
 
 class QuestionRequest(BaseModel):
     question: str
@@ -14,7 +16,7 @@ class QuestionRequest(BaseModel):
 
 class QuestionResponse(BaseModel):
     model_config = {'from_attributes': True}
-    
+
     id: UUID
     question: str
     answer: str
@@ -33,4 +35,4 @@ class QuestionUpdate(BaseModel):
     difficulty: Difficulty | None = None
     seniority_level: SeniorityLevel | None = None
     language: Language | None = None
-    
+

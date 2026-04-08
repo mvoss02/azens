@@ -1,18 +1,27 @@
-from datetime import UTC, datetime, timedelta
-from uuid import UUID
-import httpx
-from api.deps import get_current_user_id
-from fastapi import APIRouter, status, Depends, HTTPException
-from services.email import send_password_reset_email, send_verification_email
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from schemas.auth import ForgotPasswordRequest, ResetPasswordRequest, TokenResponse, SignUp, LogIn, UserResponse
-from core.security import hash_password, create_access_token, verify_password
-from core.database import get_db
-from models.user import User
-from urllib.parse import urlencode
 import secrets
+from datetime import UTC, datetime, timedelta
+from urllib.parse import urlencode
+from uuid import UUID
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.deps import get_current_user_id
 from core.config import settings as settings_auth
+from core.database import get_db
+from core.security import create_access_token, hash_password, verify_password
+from models.user import User
+from schemas.auth import (
+    ForgotPasswordRequest,
+    LogIn,
+    ResetPasswordRequest,
+    SignUp,
+    TokenResponse,
+    UserResponse,
+)
+from services.email import send_password_reset_email, send_verification_email
 
 router = APIRouter()
 
@@ -32,10 +41,10 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
     )
     db.add(user)
     await db.flush()  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
-    
+
     # 3. Send a verification email
     send_verification_email(user.email, user.verification_token)
-    
+
     # 4. Create token and return
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
@@ -44,7 +53,7 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
 async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     # 1. Check if user exists
     result = await db.execute(select(User).where(User.email == user.email))
-    
+
     existing_user = result.scalar_one_or_none()
     if not existing_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or Password incorrect")
@@ -53,7 +62,7 @@ async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenRespons
     password_is_valid = verify_password(user.password, existing_user.hashed_password)
     if not password_is_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or Password incorrect")
-    
+
     # 3. Create token and return
     token = create_access_token(str(existing_user.id))
     return TokenResponse(access_token=token)
@@ -66,7 +75,7 @@ async def me(user_id: UUID = Depends(get_current_user_id), db:AsyncSession = Dep
     existing_user = result.scalar_one_or_none()
     if not existing_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized")
-    
+
     # 2. Return user
     return existing_user
 
@@ -78,7 +87,7 @@ async def google():
         "scope": "openid email profile",
         "response_type": "code",
     })
-    
+
     return {"redirect_url": f"https://accounts.google.com/o/oauth2/v2/auth?{params}"}
 
 @router.get("/google/callback", response_model=TokenResponse, status_code=status.HTTP_200_OK)
@@ -107,7 +116,7 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)) -> Toke
 
     # 2. Check if user already exists in DB
     result = await db.execute(select(User).where(User.google_id == google_profile["id"]))
-    
+
     user = result.scalar_one_or_none()
     if not user:
         # Check if email already exists
@@ -130,7 +139,7 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)) -> Toke
     # 3. Create token and return
     token = create_access_token(str(user.id))
     return TokenResponse(access_token=token)
-    
+
 @router.get("/linkedin", status_code=status.HTTP_200_OK)
 async def linkedin():
     params = urlencode({
@@ -139,7 +148,7 @@ async def linkedin():
         "scope": "openid profile email",
         "response_type": "code",
     })
-    
+
     return {"redirect_url": f"https://www.linkedin.com/oauth/v2/authorization?{params}"}
 
 @router.get("/linkedin/callback", response_model=TokenResponse, status_code=status.HTTP_200_OK)
@@ -156,7 +165,7 @@ async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)) -> To
                 "grant_type": "authorization_code"
             },
             headers={
-                "Accept": "application/json", 
+                "Accept": "application/json",
                 "Content-Type": "application/x-www-form-urlencoded"
             },
         )
@@ -171,7 +180,7 @@ async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)) -> To
 
     # 2. Check if user already exists in DB
     result = await db.execute(select(User).where(User.linkedin_id == linkedin_profile["sub"]))
-    
+
     user = result.scalar_one_or_none()
     if not user:
         # Check if email already exists
@@ -215,21 +224,21 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
     # Find user by email
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         return {"message": "Password reset link sent"}
-    
+
     # Generate reset token and expiry
     reset_token = secrets.token_urlsafe(32)
     reset_expires = datetime.now(UTC) + timedelta(hours=1)
-    
+
     # Mark token and expiry
     user.password_reset_token = reset_token
     user.password_reset_expires = reset_expires
-    
+
     # Send email
     send_password_reset_email(to_email=user.email, token=reset_token)
-    
+
     return {"message": "Password reset link sent"}
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
@@ -237,12 +246,12 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
     # Find user by token
     result = await db.execute(select(User).where(User.password_reset_token == body.token))
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid reset token")
     elif user.password_reset_expires < datetime.now(UTC):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Reset token expired")
-    
+
     # Save new password, clear the token and expiry
     user.hashed_password = hash_password(body.new_password)
     user.password_reset_token = None

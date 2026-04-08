@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # AUTH
     access_token_expire_minutes: int = 30  # min
-    
+
     # GOOGLE AUTH
     google_client_id: str
     google_client_secret: str
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # LINKEDIN AUTH
     linkedin_client_id: str
     linkedin_client_secret: str
-    
+
     # EMAIL
     smtp_host: str = "smtp-relay.brevo.com"
     smtp_port: int = 587
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     smtp_password: str
     smtp_from_email: str = "no-reply@azens.net"
     frontend_url: str = "https://www.azens.net"
-    
+
     # AWS S3
     aws_access_key: str
     aws_secret_access_key: str
@@ -43,10 +43,10 @@ class Settings(BaseSettings):
     # STRIPE
     stripe_api_key: str
     stripe_webhook_secret: str
-    
+
     stripe_price_analyst_monthly: str
     stripe_price_analyst_yearly: str
-        
+
     stripe_price_associate_monthly: str
     stripe_price_associate_yearly: str
 

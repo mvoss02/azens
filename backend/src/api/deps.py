@@ -1,13 +1,13 @@
 from uuid import UUID
 
-from core.database import get_db
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from core.security import decode_token
-from models.user import User
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.database import get_db
+from core.security import decode_token
+from models.user import User
 
 # HTTPBearer automatically reads the "Authorization: Bearer <token>" header
 # If the header is missing, it returns None (because auto_error=False)

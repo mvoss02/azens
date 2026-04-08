@@ -1,6 +1,7 @@
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from core.config import settings as settings_email
 
 
@@ -10,7 +11,7 @@ def send_email(to: str, subject: str, html_body: str) -> None:
     msg["From"] = settings_email.smtp_from_email
     msg["To"] = to
     msg.attach(MIMEText(html_body, "html"))
-    
+
     if not settings_email.smtp_host:
         print(f"[EMAIL] To: {to}, Subject: {subject}")
         print(msg.as_string())
@@ -20,7 +21,7 @@ def send_email(to: str, subject: str, html_body: str) -> None:
         server.starttls()
         server.login(settings_email.smtp_user, settings_email.smtp_password)
         server.sendmail(settings_email.smtp_from_email, to, msg.as_string())
-        
+
 def send_verification_email(to_email: str, token: str):
     subject = "Azens Email Verification"
     html_body = f"""
@@ -38,9 +39,9 @@ def send_verification_email(to_email: str, token: str):
         </p>
     </div>
     """
-    
+
     send_email(to=to_email, subject=subject, html_body=html_body)
-    
+
 
 def send_password_reset_email(to_email: str, token: str):
     subject = "Azens Password Reset"
@@ -59,5 +60,5 @@ def send_password_reset_email(to_email: str, token: str):
         </p>
     </div>
     """
-    
+
     send_email(to=to_email, subject=subject, html_body=html_body)

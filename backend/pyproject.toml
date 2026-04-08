@@ -57,6 +57,8 @@ lint.ignore = [
     "C901",  # max-complexity-10
     "E501",  # line-too-long
     "B904",  # except clause
+    "B008",  # fucntion call in function parameter
+    "E712",  # true check
 ]
  
 [tool.ruff.format]

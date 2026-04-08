@@ -18,7 +18,7 @@ class Language(enum.Enum):
 
 class Topic(enum.Enum):
     DCF = 'dcf'
-    LBO = 'lbo' 
+    LBO = 'lbo'
     MA = 'ma'
     ACCOUNTING = 'accounting'
     VALUATION = 'valuation'
@@ -35,3 +35,24 @@ class SubscriptionPlan(enum.Enum):
     ANALYST = 'starter'
     ASSOCIATE = 'pro'
     MANAGING_DIRECTOR = 'elite'
+
+
+class SessionType(enum.Enum):
+    CV_SCREEN = 'cv_screen'
+    KNOWLEDGE_DRILL = 'knowledge_drill'
+    CASE_STUDY = 'case_study'
+
+
+class SessionStatus(enum.Enum):
+    PENDING = 'pending'       # room created, waiting for user to join
+    ACTIVE = 'active'         # interview in progress
+    COMPLETED = 'completed'   # interview finished normally
+    ERROR = 'error'           # something went wrong
+
+
+class SessionDuration(enum.Enum):
+    SHORT = 15
+    MEDIUM = 30
+    LONG = 45
+    EXTENDED = 60
+    SUPERDAY = 90
