@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from api.admin import router as router_admin
 from api.auth import router as router_auth
 from api.billing import router as router_billing
-from api.cv import router as router_cv
+from api.cvs import router as router_cv
 from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 

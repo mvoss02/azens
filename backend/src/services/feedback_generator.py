@@ -22,16 +22,15 @@ async def _generate_cv_screen_feedback(
     transcript: str,
     seniority_level: SeniorityLevel | None,
 ) -> CVScreenFeedback:
-    """Call Chatgpt with the CV screen rubric — returns a validated Pydantic instance."""
+    """Call ChatGPT with the CV screen rubric — returns a validated Pydantic instance."""
     instructions = build_cv_screen_feedback_prompt(
-        transcript=transcript,
         seniority_level=seniority_level.value if seniority_level else 'analyst',
     )
 
     response = await _client.responses.parse(
         model=settings_feedback.openai_model_feedback,
         instructions=instructions,
-        input=transcript,
+        input=f"TRANSCRIPT:\n{transcript}",
         text_format=CVScreenFeedback,
     )
     return response.output_parsed
@@ -43,14 +42,13 @@ async def _generate_knowledge_drill_feedback(
 ) -> KnowledgeDrillFeedback:
     """Call GPT-4o with the knowledge drill rubric — returns a validated Pydantic instance."""
     instructions = build_knowledge_drill_feedback_prompt(
-        transcript=transcript,
         questions_asked=questions_asked,
     )
 
     response = await _client.responses.parse(
         model=settings_feedback.openai_model_feedback,
         instructions=instructions,
-        input=transcript,
+        input=f"TRANSCRIPT:\n{transcript}",
         text_format=KnowledgeDrillFeedback,
     )
     return response.output_parsed
