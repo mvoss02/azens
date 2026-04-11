@@ -49,5 +49,7 @@ class SessionResponse(BaseModel):
     seniority_level: SeniorityLevel | None
     language: Language
     duration_minutes: SessionDuration
-
+    status: SessionStatus
+    started_at: datetime | None
+    ended_at: datetime | None
     created_at: datetime

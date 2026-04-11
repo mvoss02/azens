@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
@@ -7,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.security import decode_token
+from models.subscription import Subscription
 from models.user import User
 
 # HTTPBearer automatically reads the "Authorization: Bearer <token>" header
@@ -41,5 +43,14 @@ async def get_admin_user_id(user_id: UUID = Depends(get_current_user_id), db: As
 
     if not user or not user.is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+
+    return user_id
+
+async def get_subscribed_user_id(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),) -> UUID:
+    result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+    sub = result.scalar_one_or_none()
+
+    if not sub or not sub.is_active or (sub.current_period_end and sub.current_period_end < datetime.now(UTC)):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Active subscription required")
 
     return user_id

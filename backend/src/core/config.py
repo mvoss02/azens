@@ -53,4 +53,8 @@ class Settings(BaseSettings):
     stripe_price_managing_director_monthly: str
     stripe_price_managing_director_yearly: str
 
+    # OPENAI
+    openai_api_key: str
+    openai_model_feedback: str
+
 settings = Settings()

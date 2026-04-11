@@ -66,7 +66,7 @@ async def run_bot(transport: BaseTransport):
         api_key=os.getenv("OPENAI_API_KEY"),
         settings=OpenAILLMService.Settings(
             model=os.getenv("OPENAI_MODEL"),
-            system_instruction="You are a friendly AI assistant. Respond naturally and keep your answers conversational.",
+            system_instruction="You are an assistant with a terrible asian accent.. B2 level of english.",
         ),
     )
 

@@ -4,6 +4,7 @@ from api.admin import router as router_admin
 from api.auth import router as router_auth
 from api.billing import router as router_billing
 from api.cv import router as router_cv
+from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 
 app = FastAPI(
@@ -17,6 +18,7 @@ app.include_router(router_admin, prefix="/api/v1/admin", tags=["admin"])
 app.include_router(router_cv, prefix="/api/v1/cv", tags=["cv"])
 app.include_router(router_billing, prefix="/api/v1/billing", tags=["billing"])
 app.include_router(router_session, prefix="/api/v1/session", tags=["session"])
+app.include_router(router_feedback, prefix="/api/v1/feedback", tags=["feedback"])
 
 
 @app.get('/health')
