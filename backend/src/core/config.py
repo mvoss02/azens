@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     
     # BACKEND
     backend_url: str = "http://localhost:8080"
-
+    service_api_key: str
+    
     # DB
     database_url: str
     secret_key: str

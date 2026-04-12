@@ -1,3 +1,4 @@
+import asyncio
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -37,6 +38,7 @@ async def start_session(
     db: AsyncSession = Depends(get_db),
 ) -> StartSessionResponse:
     # Check if CV screening
+    parsed_cv_text = None
     if body.session_type == SessionType.CV_SCREEN:
         if not body.cv_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail='CV not found')
@@ -55,7 +57,7 @@ async def start_session(
             if target_cv.parsed_text:
                 parsed_cv_text = target_cv.parsed_text
             else:
-                parsed_cv_text = parse_cv_from_s3(s3_key=target_cv.s3_key)
+                parsed_cv_text = asyncio.to_thread(parse_cv_from_s3(s3_key=target_cv.s3_key))
                 target_cv.parsed_text = parsed_cv_text
 
     # Create new session
@@ -101,6 +103,7 @@ async def start_session(
             "duration_minutes": body.duration_minutes.value,
             "session_id": str(new_sess.id),
             "backend_url": settings_sessions.backend_url,
+            "service_api_key": settings_sessions.service_api_key,
         }
 
         try:
@@ -109,6 +112,7 @@ async def start_session(
                 agent_name=settings_sessions.pipecat_agent_name_cv,
             )
             new_sess.pipecat_session_id = pipecat_result.get("session_id")
+            new_sess.started_at = datetime.now(UTC)
         except Exception as e:
             new_sess.status = SessionStatus.ERROR
             await db.flush()

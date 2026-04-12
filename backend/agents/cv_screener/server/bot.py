@@ -138,27 +138,42 @@ async def run_bot(transport: BaseTransport, body: dict):
         logger.info("Client disconnected")
         await task.cancel()
 
+    service_key = body.get("service_api_key", "")
     @user_aggregator.event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message: UserTurnStoppedMessage):
         logger.info(f"Transcript: user: {message.content}")
         if session_id and backend_url:
-            async with httpx.AsyncClient() as client:
-                await client.post(f"{backend_url}/api/v1/transcripts", json={
-                    "session_id": session_id,
-                    "role": "user",
-                    "content": message.content,
-                })
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{backend_url}/api/v1/transcripts", 
+                        json={
+                            "session_id": session_id,
+                            "role": "user",
+                            "content": message.content,
+                        },
+                        headers={"X-Service-Key": service_key},
+                    )
+            except Exception as e:
+                logger.error(f"Failed to save transcript: {e}")
 
     @assistant_aggregator.event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message: AssistantTurnStoppedMessage):
         logger.info(f"Transcript: assistant: {message.content}")
         if session_id and backend_url:
-            async with httpx.AsyncClient() as client:
-                await client.post(f"{backend_url}/api/v1/transcripts", json={
-                    "session_id": session_id,
-                    "role": "assistant",
-                    "content": message.content,
-                })
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{backend_url}/api/v1/transcripts", 
+                        json={
+                            "session_id": session_id,
+                            "role": "assistant",
+                            "content": message.content,
+                        },
+                        headers={"X-Service-Key": service_key},
+                    )
+            except Exception as e:
+                logger.error(f"Failed to save transcript: {e}")
 
     runner = PipelineRunner(handle_sigint=False)
 

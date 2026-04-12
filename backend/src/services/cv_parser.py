@@ -28,6 +28,8 @@ def _build_converter() -> DocumentConverter:
         },
     )
 
+_converter = _build_converter()
+
 
 def _strip_pii(text: str) -> str:
     # Email addresses
@@ -57,8 +59,7 @@ def parse_cv_from_s3(s3_key: str) -> str:
             tmp_path = Path(tmp.name)
 
         # 3. Convert with docling
-        converter = _build_converter()
-        result = converter.convert(str(tmp_path))
+        result = _converter.convert(str(tmp_path))
         markdown = result.document.export_to_markdown()
 
         # 4. Return cleaned text
