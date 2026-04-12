@@ -47,8 +47,11 @@ async def start_session(
                 raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
             # Get CV from S3 and parse
-            parsed_cv_text = parse_cv_from_s3(s3_key=target_cv.s3_key)
-            target_cv.parsed_text = parsed_cv_text
+            if target_cv.parsed_text:
+                parsed_cv_text = target_cv.parsed_text
+            else:
+                parsed_cv_text = parse_cv_from_s3(s3_key=target_cv.s3_key)
+                target_cv.parsed_text = parsed_cv_text
 
     # Create new session
     new_sess = Session(
