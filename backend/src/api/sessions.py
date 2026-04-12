@@ -2,7 +2,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from models.user import User
+from prompts.cv_screener import build_cv_screen_interview_prompt
 from services.cv_parser import parse_cv_from_s3
+from services.pipecat_service import start_bot_session
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +22,8 @@ from models.enums import (
 from models.session import Session
 from schemas.session import SessionRequest, SessionResponse, StartSessionResponse
 from services.feedback_generator import generate_and_save_feedback
+from services.daily_service import create_room, create_meeting_token
+from core.config import settings as settings_sessions
 
 router = APIRouter()
 
@@ -66,16 +71,57 @@ async def start_session(
     db.add(new_sess)
     await db.flush()
 
-    # TODO: Create session
+    # Get room and token
+    try:
+        meeting_room_dict = await create_room(expires_in_seconds=body.duration_minutes.value * 60 + 600)
+        token = await create_meeting_token(room_name=meeting_room_dict["name"], user_name=str(user_id))
+    except Exception as e:
+        new_sess.status = SessionStatus.ERROR
+        await db.flush()
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"Failed to create video room: {e}")
 
-    await db.refresh(new_sess)
+    new_sess.daily_room_name = meeting_room_dict["name"]
+    new_sess.daily_room_url = meeting_room_dict["url"]
+    new_sess.daily_token = token
+    await db.flush()
+
+    # Call bot
+    result = await db.execute(select(User.full_name).where(User.id == user_id))
+    user_name = result.scalar_one_or_none() or "Candidate"
+
+    if new_sess.session_type == SessionType.CV_SCREEN:
+        seniority = new_sess.seniority_level.value if new_sess.seniority_level else 'analyst'
+        new_sess_body = {
+            "system_prompt": build_cv_screen_interview_prompt(
+                parsed_cv_text, seniority, user_name,
+                body.duration_minutes.value, body.personality,
+            ),
+            "language": body.language.value,
+            "user_name": user_name,
+            "duration_minutes": body.duration_minutes.value,
+            "session_id": str(new_sess.id),
+            "backend_url": settings_sessions.backend_url,
+        }
+
+        try:
+            pipecat_result = await start_bot_session(
+                body=new_sess_body,
+                agent_name=settings_sessions.pipecat_agent_name_cv,
+            )
+            new_sess.pipecat_session_id = pipecat_result.get("session_id")
+        except Exception as e:
+            new_sess.status = SessionStatus.ERROR
+            await db.flush()
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"Failed to start interview bot: {e}")
+    else:
+        raise NotImplementedError("Knowledge and case study interviews still need to be implemented")
+
+    await db.flush()
 
     return new_sess
 
 
-@router.post(
-    '/{session_id}/end', response_model=SessionResponse, status_code=status.HTTP_200_OK
-)
+@router.post('/{session_id}/end', response_model=SessionResponse, status_code=status.HTTP_200_OK)
 async def end_session(
     session_id: UUID,
     background_tasks: BackgroundTasks,

@@ -45,6 +45,7 @@ class Session(Base):
     # Daily.co room info — needed to connect the user and bot
     daily_room_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     daily_room_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    daily_token: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     # Pipecat Cloud session reference
     pipecat_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

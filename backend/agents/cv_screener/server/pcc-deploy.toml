@@ -1,0 +1,8 @@
+agent_name = "cv_screener"
+secret_set = "cv_screener-secrets"
+agent_profile = "agent-1x"
+[krisp_viva]
+	audio_filter = "tel"
+
+[scaling]
+	min_agents = 1

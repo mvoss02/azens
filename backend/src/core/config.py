@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     # DEBUG
     debug: bool = False
+    
+    # BACKEND
+    backend_url: str = "http://localhost:8080"
 
     # DB
     database_url: str
@@ -56,6 +59,23 @@ class Settings(BaseSettings):
     # OPENAI
     openai_api_key: str
     openai_model_feedback: str
+    openai_model_interviews: str
+    
+    # DAILY
+    daily_api_key: str
+    daily_room_url: str
 
+    # CARTESIA (STT/TTS)
+    cartesia_api_key: str
+    cartesia_voice_id: str
+
+    # DEEPGRAM (STT/TTS)
+    deepgram_api_key: str
+    
+    # PIPECAT
+    pipecat_api_key: str
+    pipecat_agent_name_cv: str
+    pipecat_agent_name_knowledge: str
+    pipecat_agent_name_case_study: str
 
 settings = Settings()
