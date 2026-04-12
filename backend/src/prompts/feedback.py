@@ -33,8 +33,8 @@ def _format_questions_with_answers(questions: list[dict]) -> str:
         lines.append(f"Topic: {q['topic']}")
         lines.append(f"Q: {q['question']}")
         lines.append(f"Model answer: {q['answer']}")
-        lines.append("")
-    return "\n".join(lines)
+        lines.append('')
+    return '\n'.join(lines)
 
 
 def build_knowledge_drill_feedback_prompt(questions_asked: list[dict]) -> str:

@@ -8,7 +8,7 @@ from models.enums import SessionType
 
 class FeedbackResponse(BaseModel):
     model_config = {'from_attributes': True}
-    
+
     id: UUID
     session_id: UUID
     feedback_type: SessionType

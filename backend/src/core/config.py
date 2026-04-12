@@ -27,12 +27,12 @@ class Settings(BaseSettings):
     linkedin_client_secret: str
 
     # EMAIL
-    smtp_host: str = "smtp-relay.brevo.com"
+    smtp_host: str = 'smtp-relay.brevo.com'
     smtp_port: int = 587
     smtp_user: str
     smtp_password: str
-    smtp_from_email: str = "no-reply@azens.net"
-    frontend_url: str = "https://www.azens.net"
+    smtp_from_email: str = 'no-reply@azens.net'
+    frontend_url: str = 'https://www.azens.net'
 
     # AWS S3
     aws_access_key: str
@@ -56,5 +56,6 @@ class Settings(BaseSettings):
     # OPENAI
     openai_api_key: str
     openai_model_feedback: str
+
 
 settings = Settings()

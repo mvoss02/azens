@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from services.cv_parser import parse_cv_from_s3
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,30 +23,41 @@ from services.feedback_generator import generate_and_save_feedback
 router = APIRouter()
 
 
-@router.post("/start", response_model=StartSessionResponse, status_code=status.HTTP_200_OK)
-async def start_session(body: SessionRequest, user_id: UUID = Depends(get_subscribed_user_id), db: AsyncSession = Depends(get_db)) -> StartSessionResponse:
+@router.post(
+    '/start', response_model=StartSessionResponse, status_code=status.HTTP_200_OK
+)
+async def start_session(
+    body: SessionRequest,
+    user_id: UUID = Depends(get_subscribed_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> StartSessionResponse:
     # Check if CV screening
     if body.session_type == SessionType.CV_SCREEN:
         if not body.cv_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="CV not found")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail='CV not found')
         else:
-            result = await db.execute(select(CV).where(CV.id == body.cv_id, CV.user_id == user_id, CV.is_active == True))
+            result = await db.execute(
+                select(CV).where(
+                    CV.id == body.cv_id, CV.user_id == user_id, CV.is_active == True
+                )
+            )
             target_cv = result.scalar_one_or_none()
 
             if not target_cv:
-                raise HTTPException(status.HTTP_404_NOT_FOUND, detail="CV not found")
+                raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
-            # TODO: Get from Blob
-            # TODO: Parse with docling
+            # Get CV from S3 and parse
+            parsed_cv_text = parse_cv_from_s3(s3_key=target_cv.s3_key)
+            target_cv.parsed_text = parsed_cv_text
 
     # Create new session
-    new_sess =  Session(
-        user_id = user_id,
-        cv_id = body.cv_id,
-        session_type = body.session_type,
-        seniority_level = body.seniority_level,
-        language = body.language,
-        duration_minutes = body.duration_minutes
+    new_sess = Session(
+        user_id=user_id,
+        cv_id=body.cv_id,
+        session_type=body.session_type,
+        seniority_level=body.seniority_level,
+        language=body.language,
+        duration_minutes=body.duration_minutes,
     )
 
     db.add(new_sess)
@@ -58,13 +70,23 @@ async def start_session(body: SessionRequest, user_id: UUID = Depends(get_subscr
     return new_sess
 
 
-@router.post("/{session_id}/end", response_model=SessionResponse, status_code=status.HTTP_200_OK)
-async def end_session(session_id: UUID, background_tasks: BackgroundTasks, error: bool = False, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> SessionResponse:
-    result = await db.execute(select(Session).where(Session.id == session_id, Session.user_id == user_id))
+@router.post(
+    '/{session_id}/end', response_model=SessionResponse, status_code=status.HTTP_200_OK
+)
+async def end_session(
+    session_id: UUID,
+    background_tasks: BackgroundTasks,
+    error: bool = False,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    result = await db.execute(
+        select(Session).where(Session.id == session_id, Session.user_id == user_id)
+    )
     curr_sess = result.scalar_one_or_none()
 
     if not curr_sess:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Session not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
 
     if error:
         curr_sess.status = SessionStatus.ERROR
@@ -80,9 +102,20 @@ async def end_session(session_id: UUID, background_tasks: BackgroundTasks, error
     return curr_sess
 
 
-@router.get("/", response_model=list[SessionResponse], status_code=status.HTTP_200_OK)
-async def get_sessions(session_type: SessionType | None = None, seniority_level: SeniorityLevel | None = None, language: Language | None = None, duration_minutes: SessionDuration | None = None, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> list[SessionResponse]:
-    query = select(Session).where(Session.user_id == user_id).order_by(Session.created_at.desc())
+@router.get('/', response_model=list[SessionResponse], status_code=status.HTTP_200_OK)
+async def get_sessions(
+    session_type: SessionType | None = None,
+    seniority_level: SeniorityLevel | None = None,
+    language: Language | None = None,
+    duration_minutes: SessionDuration | None = None,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> list[SessionResponse]:
+    query = (
+        select(Session)
+        .where(Session.user_id == user_id)
+        .order_by(Session.created_at.desc())
+    )
     if session_type:
         query = query.where(Session.session_type == session_type)
     if seniority_level:

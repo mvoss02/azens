@@ -14,6 +14,7 @@ class Transcript(Base):
     Stored in real-time during the session so we have a partial
     transcript even if the session is interrupted.
     """
+
     __tablename__ = 'transcripts'
 
     id: Mapped[uuid.UUID] = mapped_column(

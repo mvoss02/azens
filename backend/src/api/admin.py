@@ -12,8 +12,18 @@ from schemas.admin import QuestionRequest, QuestionResponse, QuestionUpdate
 
 router = APIRouter()
 
-@router.get("/questions", response_model=list[QuestionResponse], status_code=status.HTTP_200_OK)
-async def get_questions(seniority_level: SeniorityLevel | None = None, language: Language | None = None, topic: Topic | None = None, difficulty: Difficulty | None = None, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)) -> QuestionResponse:
+
+@router.get(
+    '/questions', response_model=list[QuestionResponse], status_code=status.HTTP_200_OK
+)
+async def get_questions(
+    seniority_level: SeniorityLevel | None = None,
+    language: Language | None = None,
+    topic: Topic | None = None,
+    difficulty: Difficulty | None = None,
+    admin_id: UUID = Depends(get_admin_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> QuestionResponse:
     query = select(Question).order_by(Question.created_at.desc())
     if seniority_level:
         query = query.where(Question.seniority_level == seniority_level)
@@ -27,21 +37,38 @@ async def get_questions(seniority_level: SeniorityLevel | None = None, language:
     result = await db.execute(query)
     return result.scalars().all()
 
-@router.post("/questions", response_model=QuestionResponse, status_code=status.HTTP_201_CREATED)
-async def post_questions(body: QuestionRequest, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)) -> QuestionResponse:
+
+@router.post(
+    '/questions', response_model=QuestionResponse, status_code=status.HTTP_201_CREATED
+)
+async def post_questions(
+    body: QuestionRequest,
+    admin_id: UUID = Depends(get_admin_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> QuestionResponse:
     question = Question(**body.model_dump())
     db.add(question)
     await db.flush()
     await db.refresh(question)  # re-reads the object from DB, including updated_at
     return question
 
-@router.put("/questions/{question_id}", response_model=QuestionResponse, status_code=status.HTTP_200_OK)
-async def update_questions(question_id: UUID, body: QuestionUpdate, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)):
+
+@router.put(
+    '/questions/{question_id}',
+    response_model=QuestionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def update_questions(
+    question_id: UUID,
+    body: QuestionUpdate,
+    admin_id: UUID = Depends(get_admin_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Question).where(Question.id == question_id))
     question = result.scalar_one_or_none()
 
     if not question:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Question not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Question not found')
 
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(question, field, value)
@@ -50,12 +77,17 @@ async def update_questions(question_id: UUID, body: QuestionUpdate, admin_id: UU
     await db.refresh(question)  # re-reads the object from DB, including updated_at
     return question
 
-@router.delete("/questions/{question_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_questions(question_id: UUID, admin_id: UUID = Depends(get_admin_user_id), db: AsyncSession = Depends(get_db)):
+
+@router.delete('/questions/{question_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_questions(
+    question_id: UUID,
+    admin_id: UUID = Depends(get_admin_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Question).where(Question.id == question_id))
     question = result.scalar_one_or_none()
 
     if not question:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Question not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Question not found')
 
     await db.delete(question)

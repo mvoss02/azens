@@ -17,13 +17,12 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials | None =
-Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> UUID:
     if credentials is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
+            detail='Not authenticated',
         )
 
     # credentials.credentials is the actual token string (without "Bearer " prefix)
@@ -32,25 +31,43 @@ Depends(bearer_scheme),
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail='Invalid or expired token',
         )
 
     return UUID(user_id)
 
-async def get_admin_user_id(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),) -> UUID:
+
+async def get_admin_user_id(
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user or not user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail='Admin access required'
+        )
 
     return user_id
 
-async def get_subscribed_user_id(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),) -> UUID:
-    result = await db.execute(select(Subscription).where(Subscription.user_id == user_id))
+
+async def get_subscribed_user_id(
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UUID:
+    result = await db.execute(
+        select(Subscription).where(Subscription.user_id == user_id)
+    )
     sub = result.scalar_one_or_none()
 
-    if not sub or not sub.is_active or (sub.current_period_end and sub.current_period_end < datetime.now(UTC)):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Active subscription required")
+    if (
+        not sub
+        or not sub.is_active
+        or (sub.current_period_end and sub.current_period_end < datetime.now(UTC))
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail='Active subscription required'
+        )
 
     return user_id

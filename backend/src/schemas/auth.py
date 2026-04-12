@@ -10,13 +10,16 @@ class SignUp(BaseModel):
     password: str
     full_name: str | None
 
+
 class LogIn(BaseModel):
     email: EmailStr
     password: str
 
+
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = 'bearer'
+
 
 class UserResponse(BaseModel):
     model_config = {'from_attributes': True}
@@ -28,8 +31,10 @@ class UserResponse(BaseModel):
     preferred_language: Language | None
     is_verified: bool
 
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+
 
 class ResetPasswordRequest(BaseModel):
     token: str

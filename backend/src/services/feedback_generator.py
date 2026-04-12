@@ -30,7 +30,7 @@ async def _generate_cv_screen_feedback(
     response = await _client.responses.parse(
         model=settings_feedback.openai_model_feedback,
         instructions=instructions,
-        input=f"TRANSCRIPT:\n{transcript}",
+        input=f'TRANSCRIPT:\n{transcript}',
         text_format=CVScreenFeedback,
     )
     return response.output_parsed
@@ -48,7 +48,7 @@ async def _generate_knowledge_drill_feedback(
     response = await _client.responses.parse(
         model=settings_feedback.openai_model_feedback,
         instructions=instructions,
-        input=f"TRANSCRIPT:\n{transcript}",
+        input=f'TRANSCRIPT:\n{transcript}',
         text_format=KnowledgeDrillFeedback,
     )
     return response.output_parsed
@@ -72,6 +72,7 @@ async def _generate_feedback(
     else:
         raise ValueError(f'Unknown interview type: {interview_type}')
 
+
 async def generate_and_save_feedback(session_id: UUID):
     async with SessionLocal() as db:
         # 1. Load session
@@ -79,7 +80,7 @@ async def generate_and_save_feedback(session_id: UUID):
         curr_sess = result.scalar_one_or_none()
 
         if not curr_sess:
-            print(f"Session {session_id} not found, skipping feedback")
+            print(f'Session {session_id} not found, skipping feedback')
             return
 
         # 2. Load transcript (concat all transcript rows for this session)
@@ -91,13 +92,18 @@ async def generate_and_save_feedback(session_id: UUID):
         transcripts = result.scalars().all()
 
         if not transcripts:
-            print(f"No transcript for session {session_id}, skipping feedback")
+            print(f'No transcript for session {session_id}, skipping feedback')
             return
 
-        formatted_transcript = "\n".join(f"{t.role}: {t.content}" for t in transcripts)
+        formatted_transcript = '\n'.join(f'{t.role}: {t.content}' for t in transcripts)
 
         # 3. Call generate_feedback()
-        llm_result = await _generate_feedback(interview_type=curr_sess.session_type, transcript=formatted_transcript, seniority_level=curr_sess.seniority_level, questions_asked=None) #TODO: Implement question tracking
+        llm_result = await _generate_feedback(
+            interview_type=curr_sess.session_type,
+            transcript=formatted_transcript,
+            seniority_level=curr_sess.seniority_level,
+            questions_asked=None,
+        )  # TODO: Implement question tracking
 
         # 4. Create Feedback record, save
         new_feedback = Feedback(

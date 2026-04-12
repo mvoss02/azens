@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 # ── CV screener feedback ──────────────────────────────────────────────────────
 
+
 class CategoryScores(BaseModel):
     communication_clarity: int = Field(..., ge=1, le=10)
     technical_accuracy: int = Field(..., ge=1, le=10)
@@ -25,6 +26,7 @@ class CVScreenFeedback(BaseModel):
 
 
 # ── Knowledge drill feedback ──────────────────────────────────────────────────
+
 
 class QuestionEvaluation(BaseModel):
     question_id: UUID

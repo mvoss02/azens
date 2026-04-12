@@ -8,6 +8,7 @@ from models.enums import SubscriptionPlan
 class CheckoutRequest(BaseModel):
     price_id: str
 
+
 class SubscriptionResponse(BaseModel):
     model_config = {'from_attributes': True}
 

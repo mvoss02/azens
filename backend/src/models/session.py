@@ -29,9 +29,7 @@ class Session(Base):
         UUID(as_uuid=True), ForeignKey('cvs.id'), nullable=True
     )
 
-    session_type: Mapped[SessionType] = mapped_column(
-        Enum(SessionType), nullable=False
-    )
+    session_type: Mapped[SessionType] = mapped_column(Enum(SessionType), nullable=False)
     status: Mapped[SessionStatus] = mapped_column(
         Enum(SessionStatus), nullable=False, default=SessionStatus.PENDING
     )
@@ -51,8 +49,12 @@ class Session(Base):
     # Pipecat Cloud session reference
     pipecat_session_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

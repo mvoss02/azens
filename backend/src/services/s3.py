@@ -17,7 +17,7 @@ s3_client = boto3.client(
 def generate_upload_url(user_id: uuid.UUID, filename: str) -> tuple[str, str]:
     """Returns (presigned_url, s3_key)"""
     extension = filename.rsplit('.', 1)[-1].lower()
-    s3_key = f"cvs/{user_id}/{uuid.uuid4()}.{extension}"
+    s3_key = f'cvs/{user_id}/{uuid.uuid4()}.{extension}'
 
     url = s3_client.generate_presigned_url(
         'put_object',
@@ -30,16 +30,23 @@ def generate_upload_url(user_id: uuid.UUID, filename: str) -> tuple[str, str]:
     )
     return url, s3_key
 
+
 def generate_download_url(s3_key: str) -> str:
     url = s3_client.generate_presigned_url(
         'get_object',
-        Params={
-            'Bucket': settings_blob.aws_s3_bucket_name,
-            'Key': s3_key
-        },
+        Params={'Bucket': settings_blob.aws_s3_bucket_name, 'Key': s3_key},
         ExpiresIn=300,
     )
     return url
 
+
 def delete_object(s3_key: str) -> None:
     s3_client.delete_object(Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key)
+
+
+def download_file(s3_key: str) -> bytes:
+    response = s3_client.get_object(
+        Bucket=settings_blob.s3_bucket_name,
+        Key=s3_key,
+    )
+    return response['Body'].read()

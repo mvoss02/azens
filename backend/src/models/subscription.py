@@ -28,10 +28,18 @@ class Subscription(Base):
         Enum(SubscriptionPlan), nullable=True
     )
 
-    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
-    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
-    billing_cycle: Mapped[str | None] = mapped_column(String(20), nullable=True)  # "monthly" or "yearly"
-    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    stripe_customer_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True
+    )
+    stripe_subscription_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True
+    )
+    billing_cycle: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # "monthly" or "yearly"
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 

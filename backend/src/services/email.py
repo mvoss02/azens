@@ -6,14 +6,14 @@ from core.config import settings as settings_email
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = settings_email.smtp_from_email
-    msg["To"] = to
-    msg.attach(MIMEText(html_body, "html"))
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = settings_email.smtp_from_email
+    msg['To'] = to
+    msg.attach(MIMEText(html_body, 'html'))
 
     if not settings_email.smtp_host:
-        print(f"[EMAIL] To: {to}, Subject: {subject}")
+        print(f'[EMAIL] To: {to}, Subject: {subject}')
         print(msg.as_string())
         return
 
@@ -22,8 +22,9 @@ def send_email(to: str, subject: str, html_body: str) -> None:
         server.login(settings_email.smtp_user, settings_email.smtp_password)
         server.sendmail(settings_email.smtp_from_email, to, msg.as_string())
 
+
 def send_verification_email(to_email: str, token: str):
-    subject = "Azens Email Verification"
+    subject = 'Azens Email Verification'
     html_body = f"""
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>Verify your email</h2>
@@ -44,7 +45,7 @@ def send_verification_email(to_email: str, token: str):
 
 
 def send_password_reset_email(to_email: str, token: str):
-    subject = "Azens Password Reset"
+    subject = 'Azens Password Reset'
     html_body = f"""
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
         <h2>Reset your password</h2>

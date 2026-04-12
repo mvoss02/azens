@@ -13,8 +13,14 @@ from schemas.feedback import FeedbackResponse
 router = APIRouter()
 
 
-@router.get("/{session_id}", response_model=FeedbackResponse, status_code=status.HTTP_200_OK)
-async def get_feedback(session_id: UUID, user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> FeedbackResponse:
+@router.get(
+    '/{session_id}', response_model=FeedbackResponse, status_code=status.HTTP_200_OK
+)
+async def get_feedback(
+    session_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> FeedbackResponse:
     result = await db.execute(
         select(Feedback)
         .join(Session, Feedback.session_id == Session.id)
@@ -24,13 +30,15 @@ async def get_feedback(session_id: UUID, user_id: UUID = Depends(get_current_use
     feedback = result.scalar_one_or_none()
 
     if not feedback:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Feedback not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Feedback not found')
 
     return feedback
 
 
-@router.get("/", response_model=list[FeedbackResponse], status_code=status.HTTP_200_OK)
-async def get_all_feedback(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> list[FeedbackResponse]:
+@router.get('/', response_model=list[FeedbackResponse], status_code=status.HTTP_200_OK)
+async def get_all_feedback(
+    user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
+) -> list[FeedbackResponse]:
     result = await db.execute(
         select(Feedback)
         .join(Session, Feedback.session_id == Session.id)

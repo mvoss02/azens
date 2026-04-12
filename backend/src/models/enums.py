@@ -44,10 +44,10 @@ class SessionType(enum.Enum):
 
 
 class SessionStatus(enum.Enum):
-    PENDING = 'pending'       # room created, waiting for user to join
-    ACTIVE = 'active'         # interview in progress
-    COMPLETED = 'completed'   # interview finished normally
-    ERROR = 'error'           # something went wrong
+    PENDING = 'pending'  # room created, waiting for user to join
+    ACTIVE = 'active'  # interview in progress
+    COMPLETED = 'completed'  # interview finished normally
+    ERROR = 'error'  # something went wrong
 
 
 class SessionDuration(enum.Enum):

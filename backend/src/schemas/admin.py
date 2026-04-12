@@ -14,6 +14,7 @@ class QuestionRequest(BaseModel):
     seniority_level: SeniorityLevel
     language: Language
 
+
 class QuestionResponse(BaseModel):
     model_config = {'from_attributes': True}
 
@@ -28,6 +29,7 @@ class QuestionResponse(BaseModel):
     updated_at: datetime | None
     is_active: bool
 
+
 class QuestionUpdate(BaseModel):
     question: str | None = None
     answer: str | None = None
@@ -35,4 +37,3 @@ class QuestionUpdate(BaseModel):
     difficulty: Difficulty | None = None
     seniority_level: SeniorityLevel | None = None
     language: Language | None = None
-
