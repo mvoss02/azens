@@ -68,7 +68,11 @@ class Settings(BaseSettings):
 
     # CARTESIA (STT/TTS)
     cartesia_api_key: str
-    cartesia_voice_id: str
+    cartesia_voice_id_en: str
+    cartesia_voice_id_de: str
+    cartesia_voice_id_es: str
+    cartesia_voice_id_it: str
+    cartesia_voice_id_nl: str
 
     # DEEPGRAM (STT/TTS)
     deepgram_api_key: str

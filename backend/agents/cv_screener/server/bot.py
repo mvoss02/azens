@@ -20,13 +20,14 @@ Run the bot using::
     uv run bot.py
 """
 
+import asyncio
 import os
 
 from dotenv import load_dotenv
 import httpx
 from loguru import logger
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import LLMRunFrame
+from pipecat.frames.frames import LLMRunFrame, EndFrame, TTSSpeakFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -50,6 +51,26 @@ from pipecat.audio.vad.vad_analyzer import VADParams
 load_dotenv(override=True)
 
 
+async def _schedule_wrap_up(context, task, duration_minutes: int, percentage: float, context_message: str):
+      # Wait until "percentage" of the session time has passed
+      wrap_up_time = duration_minutes * 60 * percentage
+      await asyncio.sleep(wrap_up_time)
+
+      context.add_message({
+          "role": "system",
+          "content": context_message
+      })
+      await task.queue_frames([LLMRunFrame()])
+
+# Hard stop at 100% — cancel the pipeline
+async def _hard_stop(task, duration_minutes):
+    await asyncio.sleep(duration_minutes * 60 + 15)
+    logger.info("Session duration reached — stopping pipeline")
+    await task.queue_frames([
+        TTSSpeakFrame("Thank you for your time today and the great interview today. Take care!"),
+        EndFrame(),
+    ])
+
 async def run_bot(transport: BaseTransport, body: dict):
     """Main bot logic."""
     logger.info(f"Starting bot with config: {body}")
@@ -57,13 +78,25 @@ async def run_bot(transport: BaseTransport, body: dict):
     # Extract session config
     system_prompt = body.get("system_prompt", "You are a helpful assistant.")
     language = body.get("language", "english")
-    user_name = body.get("user_name", "Candidate")
+    user_name = body.get("user_name", "Moritz")
     duration = body.get("duration_minutes", 30)
     session_id = body.get("session_id")
     backend_url = body.get("backend_url")  # your FastAPI URL for posting transcripts
 
     # Speech-to-Text service
-    stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+    deepgram_language_map = {
+        "english": "en",
+        "german": "de",
+        "spanish": "es",
+        "italian": "it",
+        "dutch": "nl",
+    }
+    stt = DeepgramSTTService(
+        api_key=os.getenv("DEEPGRAM_API_KEY"),
+        settings=DeepgramSTTService.Settings(
+            language=deepgram_language_map.get(language, "en"),  # "en", "de", "es", "it", "nl"
+        ),
+    )
 
     # Text-to-Speech service
     voice_map = {
@@ -119,6 +152,8 @@ async def run_bot(transport: BaseTransport, body: dict):
         params=PipelineParams(
             enable_metrics=True,
             enable_usage_metrics=True,
+            idle_timeout_secs=15, # trigger after 15 seconds of silence
+            cancel_on_idle_timeout=False, # don't cancel — just fire the event
         ),
         observers=[],
     )
@@ -126,7 +161,7 @@ async def run_bot(transport: BaseTransport, body: dict):
     @task.rtvi.event_handler("on_client_ready")
     async def on_client_ready(rtvi):
         # Kick off the conversation
-        context.add_message({"role": "user", "content": "The candidate has joined. Begin the interview."})
+        context.add_message({"role": "user", "content": f"{user_name} has just joined the call. Start with giving a short introduction about yourself and ask 1 small talk question before starting to conduct the job interview."})
         await task.queue_frames([LLMRunFrame()])
 
     @transport.event_handler("on_client_connected")
@@ -137,6 +172,14 @@ async def run_bot(transport: BaseTransport, body: dict):
     async def on_client_disconnected(transport, client):
         logger.info("Client disconnected")
         await task.cancel()
+    
+    @task.event_handler("on_idle_timeout")
+    async def on_idle_timeout(task):
+        context.add_message({
+            "role": "system",
+            "content": "The candidate has been silent for a while. Gently check in — ask if they're okay or if they need you to rephrase the question."
+        })
+        await task.queue_frames([LLMRunFrame()])
 
     service_key = body.get("service_api_key", "")
     @user_aggregator.event_handler("on_user_turn_stopped")
@@ -174,6 +217,14 @@ async def run_bot(transport: BaseTransport, body: dict):
                     )
             except Exception as e:
                 logger.error(f"Failed to save transcript: {e}")
+                
+    # Schedule graceful wrap-up timers
+    asyncio.create_task(_schedule_wrap_up(
+        context, task, duration, 0.90,
+        "The session is nearing its end. Wrap up the current topic gracefully within the next 2-3 minutes. Move to your closing remarks and ask whether the candidate has any final questions."
+    ))
+    
+    asyncio.create_task(_hard_stop(task, duration))
 
     runner = PipelineRunner(handle_sigint=False)
 
