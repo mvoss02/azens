@@ -80,3 +80,32 @@ Test credit card: 4242 4242 4242 4242
 stripe login
 stripe listen --api-key <SANDBOX_API_KEY> --forward-to localhost:8080/api/v1/billing/webhook
 ```
+
+# Pipecat
+
+## Deploy Agent
+
+Login
+
+```sh
+pipecat cloud auth login
+```
+
+Configure secrets
+
+```sh
+pipecat cloud secrets set pipecat-<NAME>-secrets --file .env
+pipecat cloud secrets list # List secrets
+```
+
+Deploy agent (navigate to corresponding "server/" folder)
+
+```sh
+pipecat cloud deploy <AGENT_NAME> --secrets pipecat-cv-screener-secrets
+```
+
+Test deployment
+
+```sh
+pipecat cloud agent start <AGENT_NAME> --use-daily
+```

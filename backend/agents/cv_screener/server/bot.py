@@ -107,6 +107,8 @@ async def run_bot(transport: BaseTransport, body: dict):
         "dutch": os.getenv("CARTESIA_VOICE_ID_NL"),
     }
     
+    logger.info(f"CARTESIA_VOICE_ID_EN = {os.getenv('CARTESIA_VOICE_ID_EN')}")
+    
     tts = CartesiaTTSService(
         api_key=os.getenv("CARTESIA_API_KEY"),
         settings=CartesiaTTSService.Settings(
