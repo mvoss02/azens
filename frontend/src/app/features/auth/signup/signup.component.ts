@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { AuthLayoutComponent } from '../../../shared/components/auth-layout/auth-layout.component';
 import { AuthService } from '../../../core/auth/auth.service';
+import { I18nService } from '../../../core/i18n/i18n.service';
 import { environment } from '../../../../environments/environment';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
@@ -29,6 +30,7 @@ export class SignupComponent {
     private auth: AuthService,
     private router: Router,
     private http: HttpClient,
+    private i18n: I18nService,
   ) {
     this.form = this.fb.group(
       {
@@ -48,7 +50,13 @@ export class SignupComponent {
 
     const { confirmPassword, ...payload } = this.form.getRawValue();
     this.auth.signup(payload).subscribe({
-      next: () => this.router.navigate(['/app/dashboard']),
+      next: () => {
+        // Set preferred language from the landing page selection
+        this.http.put(`${environment.apiUrl}/auth/me`, {
+          preferred_language: this.i18n.backendValue(),
+        }).subscribe();
+        this.router.navigate(['/app/dashboard']);
+      },
       error: (err) => {
         this.errorMessage.set(err.error?.detail ?? 'Signup failed. Please try again.');
         this.isLoading.set(false);

@@ -1,0 +1,76 @@
+<div class="page">
+  <div class="page-header">
+    <h1>{{ greeting }}</h1>
+    <p class="page-sub">What would you like to work on today?</p>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="actions">
+    <a routerLink="/app/sessions/new" [queryParams]="{type: 'cv_screen'}" class="action-card">
+      <div class="action-icon">◈</div>
+      <div>
+        <h3>CV Screening</h3>
+        <p>Get drilled on your CV by a senior interviewer</p>
+      </div>
+    </a>
+    <a routerLink="/app/sessions/new" [queryParams]="{type: 'knowledge_drill'}" class="action-card">
+      <div class="action-icon">⬡</div>
+      <div>
+        <h3>Knowledge Drill</h3>
+        <p>Test your technical finance knowledge</p>
+      </div>
+    </a>
+  </div>
+
+  <!-- CV warning -->
+  @if (!hasCv()) {
+    <div class="banner">
+      <div>
+        <strong>Upload your CV</strong> to unlock CV screening sessions.
+      </div>
+      <a routerLink="/app/cvs" class="btn btn-primary" style="flex-shrink:0">Upload CV</a>
+    </div>
+  }
+
+  <!-- Subscription status -->
+  @if (subscription()) {
+    <div class="sub-card">
+      <div class="sub-plan">
+        <span class="mono" style="font-size:11px;color:var(--color-text-faint)">CURRENT PLAN</span>
+        <span class="sub-name">{{ subscription().plan }}</span>
+      </div>
+      <a routerLink="/app/billing" class="btn btn-ghost" style="font-size:13px">Manage</a>
+    </div>
+  }
+
+  <!-- Recent sessions -->
+  <div class="section">
+    <div class="section-top">
+      <h2>Recent sessions</h2>
+      @if (recentSessions().length > 0) {
+        <a routerLink="/app/sessions" class="see-all">See all →</a>
+      }
+    </div>
+
+    @if (isLoading()) {
+      <p class="empty">Loading...</p>
+    } @else if (recentSessions().length === 0) {
+      <div class="empty-state">
+        <p>No sessions yet. Start your first interview above.</p>
+      </div>
+    } @else {
+      <div class="session-list">
+        @for (session of recentSessions(); track session.id) {
+          <div class="session-row">
+            <span class="session-type mono">{{ sessionTypeLabel(session.session_type) }}</span>
+            <span class="session-date">{{ formatDate(session.created_at) }}</span>
+            <span class="session-status" [class]="session.status">{{ session.status }}</span>
+            @if (session.status === 'completed') {
+              <a [routerLink]="['/app/feedback', session.id]" class="session-link">Feedback →</a>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

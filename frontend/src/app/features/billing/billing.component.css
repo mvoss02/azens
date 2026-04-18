@@ -1,0 +1,102 @@
+.page { max-width: 860px; margin: 0 auto; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: -0.02em; }
+.page-sub { margin-top: 4px; font-size: 14px; color: var(--color-text-faint); }
+.empty { font-size: 13.5px; color: var(--color-text-faint); }
+
+.success-banner {
+  padding: 12px 18px; border-radius: 12px; margin-bottom: 20px;
+  background: rgba(45, 122, 79, 0.06); color: var(--color-success);
+  font-size: 13.5px; font-weight: 500;
+}
+
+/* ── Current plan ─────────────────────────────────── */
+
+.current-plan {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+  padding: 22px; background: var(--color-bg-alt); border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.plan-info { display: flex; flex-direction: column; gap: 4px; }
+.plan-label { font-size: 10.5px; color: var(--color-text-faint); }
+.plan-name { font-family: var(--font-display); font-size: 24px; font-weight: 400; text-transform: capitalize; margin: 0; }
+.plan-meta { font-size: 13px; color: var(--color-text-faint); }
+
+/* ── Toggle ───────────────────────────────────────── */
+
+.billing-toggle {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+  font-size: 14px; color: var(--color-text-faint); font-weight: 500;
+}
+
+.toggle-active { color: var(--color-text); }
+
+.toggle-switch {
+  width: 44px; height: 24px; border-radius: 12px; background: var(--color-border);
+  position: relative; cursor: pointer; transition: 0.25s ease; border: none; padding: 0;
+}
+.toggle-switch.toggle-on { background: var(--color-forest); }
+
+.toggle-knob {
+  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; transition: 0.25s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.toggle-on .toggle-knob { left: 23px; }
+
+.save-badge {
+  margin-left: 8px; padding: 3px 8px; border-radius: var(--radius-pill);
+  background: rgba(30, 58, 46, 0.1); color: var(--color-forest);
+  font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+}
+
+/* ── Plan cards ───────────────────────────────────── */
+
+.plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+
+.plan-card {
+  background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 18px;
+  padding: 24px; display: flex; flex-direction: column; gap: 12px;
+  position: relative; transition: 0.2s ease;
+}
+
+.plan-card:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.15); }
+
+.plan-card.featured {
+  background: var(--color-ink); color: #E8E1CE; border-color: transparent;
+  box-shadow: 0 20px 40px -20px rgba(21, 19, 17, 0.35);
+}
+
+.plan-tier { font-size: 10.5px; color: var(--color-text-faint); }
+.plan-card.featured .plan-tier { color: rgba(232, 225, 206, 0.6); }
+
+.plan-card h3 { font-family: var(--font-display); font-size: 24px; font-weight: 400; margin: 0; }
+
+.plan-price { font-family: var(--font-display); font-size: 42px; line-height: 1; letter-spacing: -0.02em; }
+.plan-price em { font-style: italic; color: var(--color-amber); }
+.plan-price small { font-family: var(--font-body); font-size: 13px; color: var(--color-text-faint); margin-left: 4px; font-style: normal; }
+.plan-card.featured .plan-price small { color: rgba(232, 225, 206, 0.6); }
+
+.plan-card ul {
+  list-style: none; padding: 0; margin: 4px 0; display: flex; flex-direction: column;
+  gap: 8px; font-size: 13.5px; color: var(--color-text-muted); flex: 1;
+}
+.plan-card.featured ul { color: rgba(232, 225, 206, 0.8); }
+
+.plan-card li { display: flex; gap: 8px; align-items: flex-start; }
+.plan-card li::before { content: "✓"; color: var(--color-amber); font-weight: 700; }
+
+.plan-card .btn { width: 100%; justify-content: center; margin-top: 4px; }
+
+.ribbon {
+  position: absolute; top: -9px; right: 16px;
+  background: var(--color-amber); color: #1a1107;
+  padding: 3px 10px; border-radius: var(--radius-pill);
+  font-size: 10.5px; font-weight: 500; font-family: var(--font-mono);
+}
+
+@media (max-width: 768px) {
+  .plans { grid-template-columns: 1fr; }
+  .current-plan { flex-direction: column; }
+}

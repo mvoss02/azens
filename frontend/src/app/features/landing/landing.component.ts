@@ -2,6 +2,7 @@ import { Component, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NavComponent } from '../../shared/components/nav/nav.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
+import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-landing',
@@ -14,6 +15,8 @@ export class LandingComponent {
   activeTab = signal<'cv' | 'drill' | 'case'>('cv');
   billingCycle = signal<'monthly' | 'halfyearly'>('monthly');
   activeTestimonial = signal(0);
+
+  constructor(public i18n: I18nService) {}
 
   readonly testimonials = [
     {

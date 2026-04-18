@@ -6,19 +6,38 @@
     </a>
 
     <div class="nav-center">
-      <a (click)="scrollTo('product')">Product</a>
-      <a (click)="scrollTo('testimonials')">Testimonials</a>
-      <a (click)="scrollTo('pricing')">Pricing</a>
-      <a (click)="scrollTo('faq')">FAQ</a>
+      <a (click)="scrollTo('product')">{{ i18n.t('nav.product') }}</a>
+      <a (click)="scrollTo('testimonials')">{{ i18n.t('nav.testimonials') }}</a>
+      <a (click)="scrollTo('pricing')">{{ i18n.t('nav.pricing') }}</a>
+      <a (click)="scrollTo('faq')">{{ i18n.t('nav.faq') }}</a>
     </div>
 
     <div class="nav-right">
+      <!-- Language picker -->
+      <div class="lang-picker">
+        <button class="lang-btn" (click)="toggleLangMenu()">
+          {{ i18n.lang().toUpperCase() }} <span class="lang-arrow">▾</span>
+        </button>
+        @if (langMenuOpen()) {
+          <div class="lang-dropdown">
+            @for (lang of languages; track lang.code) {
+              <button
+                class="lang-option"
+                [class.active]="lang.code === i18n.lang()"
+                (click)="selectLang(lang.code)">
+                {{ lang.label }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+
       @if (!auth.isLoggedIn()) {
-        <a class="btn btn-ghost" routerLink="/auth/login">Sign in</a>
-        <a class="btn btn-primary" routerLink="/auth/signup">Get started <span>→</span></a>
+        <a class="btn btn-ghost" routerLink="/auth/login">{{ i18n.t('nav.signin') }}</a>
+        <a class="btn btn-primary" routerLink="/auth/signup">{{ i18n.t('nav.getstarted') }} <span>→</span></a>
       } @else {
-        <a class="btn btn-ghost" routerLink="/app/dashboard">Dashboard</a>
-        <button class="btn btn-ghost" (click)="auth.logout()">Log out</button>
+        <a class="btn btn-ghost" routerLink="/app/dashboard">{{ i18n.t('nav.dashboard') }}</a>
+        <button class="btn btn-ghost" (click)="auth.logout()">{{ i18n.t('nav.logout') }}</button>
       }
     </div>
   </div>

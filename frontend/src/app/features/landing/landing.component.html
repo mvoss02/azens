@@ -6,17 +6,17 @@
   <section class="hero">
     <div class="hero-grid">
       <div>
-        <span class="tag"><span class="dot"></span>Voice mock interviews for IB &amp; PE</span>
-        <h1>Practice the interview that gets you the <em>offer.</em></h1>
-        <p class="hero-sub">Azens runs realistic voice mock interviews for investment banking and private equity candidates. Trained on your CV, tuned to your seniority, with a full feedback report after every session.</p>
+        <span class="tag"><span class="dot"></span>{{ i18n.t('hero.tag') }}</span>
+        <h1>{{ i18n.t('hero.title') }} <em>{{ i18n.t('hero.title.em') }}</em></h1>
+        <p class="hero-sub">{{ i18n.t('hero.sub') }}</p>
         <div class="hero-cta">
-          <a class="btn btn-primary btn-lg" routerLink="/auth/signup">Get started <span>→</span></a>
-          <a class="btn btn-ghost btn-lg" href="#">▶ Listen to a sample</a>
+          <a class="btn btn-primary btn-lg" routerLink="/auth/signup">{{ i18n.t('hero.cta.primary') }} <span>→</span></a>
+          <a class="btn btn-ghost btn-lg" href="#">{{ i18n.t('hero.cta.secondary') }}</a>
         </div>
         <div class="hero-trust">
-          <span><span class="check">✓</span> Cancel anytime</span>
-          <span><span class="check">✓</span> GDPR · EU-hosted</span>
-          <span><span class="check">✓</span> EN · DE · ES · IT · NL</span>
+          <span><span class="check">✓</span> {{ i18n.t('hero.trust.cancel') }}</span>
+          <span><span class="check">✓</span> {{ i18n.t('hero.trust.gdpr') }}</span>
+          <span><span class="check">✓</span> {{ i18n.t('hero.trust.langs') }}</span>
         </div>
       </div>
 
@@ -115,26 +115,26 @@
   <section id="product">
     <div class="section-head">
       <div>
-        <span class="meta kicker">The product</span>
-        <h2>Five tools. One <em>goal.</em></h2>
+        <span class="meta kicker">{{ i18n.t('product.kicker') }}</span>
+        <h2>{{ i18n.t('product.title') }} <em>{{ i18n.t('product.title.em') }}</em></h2>
       </div>
-      <p class="side">Two equal pillars — CV screening and knowledge drills — both powered by a voice AI that sounds real, both followed by a detailed report. Plus case studies coming Q2.</p>
+      <p class="side">{{ i18n.t('product.side') }}</p>
     </div>
 
     <!-- Feature 1: Voice AI -->
     <div class="feature forest">
       <div class="feature-text">
-        <div class="num">01</div>
-        <span class="meta">Voice AI interviewer</span>
-        <h3>Talk to an interviewer that sounds <em>real.</em></h3>
-        <p>A low-latency voice agent that interrupts, probes and pushes back. Not a chatbot typing replies — an actual voice on the other end of the call.</p>
+        <div class="num">{{ i18n.t('feature1.num') }}</div>
+        <span class="meta">{{ i18n.t('feature1.meta') }}</span>
+        <h3>{{ i18n.t('feature1.title') }} <em>{{ i18n.t('feature1.title.em') }}</em></h3>
+        <p>{{ i18n.t('feature1.desc') }}</p>
         <ul>
-          <li>Natural conversation — interrupts and follow-ups</li>
-          <li>Session length: 15 · 30 · 45 · 60 · 90 min</li>
-          <li>Personality modes: strict · balanced · supportive</li>
-          <li>Available in EN · DE · ES · IT · NL</li>
+          <li>{{ i18n.t('feature1.li1') }}</li>
+          <li>{{ i18n.t('feature1.li2') }}</li>
+          <li>{{ i18n.t('feature1.li3') }}</li>
+          <li>{{ i18n.t('feature1.li4') }}</li>
         </ul>
-        <a class="btn btn-on-dark" routerLink="/auth/signup">See how it sounds <span>→</span></a>
+        <a class="btn btn-on-dark" routerLink="/auth/signup">{{ i18n.t('feature1.cta') }} <span>→</span></a>
       </div>
       <div class="mock mock-voice">
         <div class="mock-head">
@@ -155,16 +155,16 @@
     <!-- Feature 2: CV Screening -->
     <div class="feature amber reverse">
       <div class="feature-text">
-        <div class="num">02</div>
-        <span class="meta">CV screening</span>
-        <h3>Defend your deal sheet, line by <em>line.</em></h3>
-        <p>Upload your CV, and the bot reads every deal, every metric, every internship. It then drills you exactly like a senior banker would.</p>
+        <div class="num">{{ i18n.t('feature2.num') }}</div>
+        <span class="meta">{{ i18n.t('feature2.meta') }}</span>
+        <h3>{{ i18n.t('feature2.title') }} <em>{{ i18n.t('feature2.title.em') }}</em></h3>
+        <p>{{ i18n.t('feature2.desc') }}</p>
         <ul>
-          <li>Auto-parses deals, valuations and metrics</li>
-          <li>Seniority-aware: Intern → Analyst → Associate → VP+</li>
-          <li>Personal info stripped before any AI call</li>
+          <li>{{ i18n.t('feature2.li1') }}</li>
+          <li>{{ i18n.t('feature2.li2') }}</li>
+          <li>{{ i18n.t('feature2.li3') }}</li>
         </ul>
-        <a class="btn btn-dark" routerLink="/auth/signup">Upload a CV <span>→</span></a>
+        <a class="btn btn-dark" routerLink="/auth/signup">{{ i18n.t('feature2.cta') }} <span>→</span></a>
       </div>
       <div class="mock">
         <div class="mock-head">
@@ -190,16 +190,16 @@
     <!-- Feature 3: Knowledge Drills -->
     <div class="feature forest">
       <div class="feature-text">
-        <div class="num">03</div>
-        <span class="meta">Knowledge drills</span>
-        <h3>Technicals, <em>drilled</em> until they stick.</h3>
-        <p>Rapid-fire questions across DCF, LBO, M&amp;A, accounting and valuation. Difficulty climbs as you get them right.</p>
+        <div class="num">{{ i18n.t('feature3.num') }}</div>
+        <span class="meta">{{ i18n.t('feature3.meta') }}</span>
+        <h3>{{ i18n.t('feature3.title') }} <em>{{ i18n.t('feature3.title.em') }}</em> {{ i18n.t('feature3.title.after') }}</h3>
+        <p>{{ i18n.t('feature3.desc') }}</p>
         <ul>
-          <li>500+ questions across 5 core IB &amp; PE topics</li>
-          <li>Adaptive difficulty 1 → 3, tuned to your answers</li>
-          <li>Per-topic score breakdown after every drill</li>
+          <li>{{ i18n.t('feature3.li1') }}</li>
+          <li>{{ i18n.t('feature3.li2') }}</li>
+          <li>{{ i18n.t('feature3.li3') }}</li>
         </ul>
-        <a class="btn btn-on-dark" routerLink="/auth/signup">Run a drill <span>→</span></a>
+        <a class="btn btn-on-dark" routerLink="/auth/signup">{{ i18n.t('feature3.cta') }} <span>→</span></a>
       </div>
       <div class="mock mock-voice">
         <div class="mock-head">
@@ -220,16 +220,16 @@
     <!-- Feature 4: Feedback -->
     <div class="feature lilac reverse">
       <div class="feature-text">
-        <div class="num">04</div>
-        <span class="meta">Detailed feedback</span>
-        <h3>A feedback report you can <em>actually</em> act on.</h3>
-        <p>Every session ends with a structured report. Scored across four categories — not a vibe check. Specific strengths, specific weaknesses, exact timestamps from the transcript.</p>
+        <div class="num">{{ i18n.t('feature4.num') }}</div>
+        <span class="meta">{{ i18n.t('feature4.meta') }}</span>
+        <h3>{{ i18n.t('feature4.title') }} <em>{{ i18n.t('feature4.title.em') }}</em> {{ i18n.t('feature4.title.after') }}</h3>
+        <p>{{ i18n.t('feature4.desc') }}</p>
         <ul>
-          <li>Scored on communication, technical accuracy, structure, confidence</li>
-          <li>Transcript quoted inline with the exact moments that cost you points</li>
-          <li>Three personalised drills auto-queued for tomorrow</li>
+          <li>{{ i18n.t('feature4.li1') }}</li>
+          <li>{{ i18n.t('feature4.li2') }}</li>
+          <li>{{ i18n.t('feature4.li3') }}</li>
         </ul>
-        <a class="btn btn-dark" routerLink="/auth/signup">See a sample report <span>→</span></a>
+        <a class="btn btn-dark" routerLink="/auth/signup">{{ i18n.t('feature4.cta') }} <span>→</span></a>
       </div>
       <div class="mock">
         <div class="mock-head">
@@ -260,10 +260,10 @@
     <!-- Feature 5: Case Studies (Coming Soon) -->
     <div class="feature amber">
       <div class="feature-text">
-        <div class="num">05</div>
-        <span class="meta">Coming Q2 2026</span>
-        <h3>Excel case studies, <em>presented</em> to the AI.</h3>
-        <p>Pull a real Excel-based case from a pool of dozens — LBO, M&amp;A, DCF, merger models. Work through it offline, then present to the AI interviewer.</p>
+        <div class="num">{{ i18n.t('feature5.num') }}</div>
+        <span class="meta">{{ i18n.t('feature5.meta') }}</span>
+        <h3>{{ i18n.t('feature5.title') }} <em>{{ i18n.t('feature5.title.em') }}</em> {{ i18n.t('feature5.title.after') }}</h3>
+        <p>{{ i18n.t('feature5.desc') }}</p>
         <ul>
           <li>Curated pool — real IB &amp; PE case study formats</li>
           <li>Work at your own pace, then present out loud</li>
@@ -285,8 +285,8 @@
   <section id="testimonials">
     <div class="section-head">
       <div>
-        <span class="meta kicker">From real candidates</span>
-        <h2>They practised. They <em>landed it.</em></h2>
+        <span class="meta kicker">{{ i18n.t('testimonials.kicker') }}</span>
+        <h2>{{ i18n.t('testimonials.title') }} <em>{{ i18n.t('testimonials.title.em') }}</em></h2>
       </div>
     </div>
 
@@ -328,20 +328,20 @@
   <section id="pricing">
     <div class="section-head">
       <div>
-        <span class="meta kicker">Pricing</span>
-        <h2>Pick your <em>seat.</em></h2>
+        <span class="meta kicker">{{ i18n.t('pricing.kicker') }}</span>
+        <h2>{{ i18n.t('pricing.title') }} <em>{{ i18n.t('pricing.title.em') }}</em></h2>
       </div>
-      <p class="side">Plans named after the jobs you're training for. Cancel any time.</p>
+      <p class="side">{{ i18n.t('pricing.side') }}</p>
     </div>
 
     <div class="billing-toggle">
-      <span [class.toggle-label-active]="billingCycle() === 'monthly'">Monthly</span>
+      <span [class.toggle-label-active]="billingCycle() === 'monthly'">{{ i18n.t('pricing.monthly') }}</span>
       <button class="toggle-switch" [class.toggle-on]="billingCycle() === 'halfyearly'" (click)="toggleBilling()">
         <span class="toggle-knob"></span>
       </button>
       <span [class.toggle-label-active]="billingCycle() === 'halfyearly'">
-        6 months
-        <span class="save-badge">Save 20%</span>
+        {{ i18n.t('pricing.halfyearly') }}
+        <span class="save-badge">{{ i18n.t('pricing.save') }}</span>
       </span>
     </div>
 
@@ -377,10 +377,10 @@
   <section id="faq">
     <div class="section-head">
       <div>
-        <span class="meta kicker">FAQ</span>
-        <h2>Questions, <em>answered.</em></h2>
+        <span class="meta kicker">{{ i18n.t('faq.kicker') }}</span>
+        <h2>{{ i18n.t('faq.title') }} <em>{{ i18n.t('faq.title.em') }}</em></h2>
       </div>
-      <p class="side">Need more? The team replies within the day.</p>
+      <p class="side">{{ i18n.t('faq.side') }}</p>
     </div>
     <div class="faq">
       <details class="faq-item" open>
@@ -409,11 +409,11 @@
   <!-- FINAL CTA -->
   <section>
     <div class="final-cta">
-      <h2>Start practising <em>today.</em></h2>
-      <p>Pick your plan, upload your CV, and run your first session in under five minutes. Cancel any time.</p>
+      <h2>{{ i18n.t('cta.title') }} <em>{{ i18n.t('cta.title.em') }}</em></h2>
+      <p>{{ i18n.t('cta.sub') }}</p>
       <div class="ctas">
-        <a class="btn btn-dark btn-lg" routerLink="/auth/signup">Get started <span>→</span></a>
-        <a class="btn btn-ghost btn-lg" href="#pricing" style="background:rgba(255,255,255,0.6)">See pricing</a>
+        <a class="btn btn-dark btn-lg" routerLink="/auth/signup">{{ i18n.t('cta.primary') }} <span>→</span></a>
+        <a class="btn btn-ghost btn-lg" href="#pricing" style="background:rgba(255,255,255,0.6)">{{ i18n.t('cta.secondary') }}</a>
       </div>
     </div>
   </section>

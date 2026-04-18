@@ -64,6 +64,69 @@
   align-items: center;
 }
 
+/* ── Language picker ───────────────────────────────── */
+
+.lang-picker {
+  position: relative;
+}
+
+.lang-btn {
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lang-btn:hover {
+  background: #fff;
+}
+
+.lang-arrow {
+  font-size: 10px;
+  color: var(--color-text-faint);
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  z-index: 100;
+  min-width: 64px;
+}
+
+.lang-option {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  text-align: left;
+  transition: 0.1s ease;
+  cursor: pointer;
+}
+
+.lang-option:hover {
+  background: rgba(21, 19, 17, 0.04);
+}
+
+.lang-option.active {
+  color: var(--color-amber);
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .nav-center {
     display: none;

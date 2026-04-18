@@ -1,0 +1,68 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Billing</h1>
+    <p class="page-sub">Manage your subscription and billing.</p>
+  </div>
+
+  @if (successMessage()) {
+    <div class="success-banner">{{ successMessage() }}</div>
+  }
+
+  @if (isLoading()) {
+    <p class="empty">Loading...</p>
+  } @else if (subscription() && subscription()!.is_active) {
+    <!-- Current plan -->
+    <div class="current-plan">
+      <div class="plan-info">
+        <span class="mono plan-label">CURRENT PLAN</span>
+        <h2 class="plan-name">{{ subscription()!.plan }}</h2>
+        <span class="plan-meta">{{ subscription()!.billing_cycle }} · {{ subscription()!.is_active ? 'Active' : 'Inactive' }}</span>
+        @if (subscription()!.current_period_end) {
+          <span class="plan-meta">Next billing: {{ formatDate(subscription()!.current_period_end) }}</span>
+        }
+      </div>
+      <button class="btn btn-ghost" (click)="openPortal()">Manage subscription</button>
+    </div>
+  } @else {
+    <!-- Plan picker -->
+    <div class="billing-toggle">
+      <span [class.toggle-active]="!halfYearly()">Monthly</span>
+      <button class="toggle-switch" [class.toggle-on]="halfYearly()" (click)="toggleBilling()">
+        <span class="toggle-knob"></span>
+      </button>
+      <span [class.toggle-active]="halfYearly()">
+        6 months
+        <span class="save-badge">Save 20%</span>
+      </span>
+    </div>
+
+    <div class="plans">
+      @for (plan of plans; track plan.name) {
+        <div class="plan-card" [class.featured]="plan.featured">
+          @if (plan.featured) {
+            <span class="ribbon">Most popular</span>
+          }
+          <span class="mono plan-tier">{{ plan.tier }}</span>
+          <h3>{{ plan.name }}</h3>
+          <div class="plan-price">
+            <em>{{ halfYearly() ? plan.priceHalfYearly : plan.priceMonthly }}</em>
+            <small>{{ halfYearly() ? '/ 6 months' : '/ month' }}</small>
+          </div>
+          <ul>
+            @for (feat of plan.features; track feat) {
+              <li>{{ feat }}</li>
+            }
+          </ul>
+          <button
+            class="btn"
+            [class.btn-primary]="plan.featured"
+            [class.btn-ghost]="!plan.featured"
+            [disabled]="checkoutLoading() !== ''"
+            (click)="subscribe(plan)">
+            {{ checkoutLoading() === plan.name ? 'Loading...' : 'Get ' + plan.name }}
+          </button>
+        </div>
+      }
+    </div>
+  }
+</div>

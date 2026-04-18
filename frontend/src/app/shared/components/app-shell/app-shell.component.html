@@ -1,0 +1,35 @@
+<div class="shell">
+  <aside class="sidebar">
+    <a routerLink="/" class="sidebar-logo">
+      <span class="sidebar-logo-mark">𝒜</span>
+      <span>Azens</span>
+    </a>
+
+    <nav class="sidebar-nav">
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          class="sidebar-link">
+          <span class="sidebar-icon">{{ item.icon }}</span>
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-user">
+      <div class="sidebar-avatar">
+        {{ (auth.user()?.full_name ?? auth.user()?.email ?? '?')[0].toUpperCase() }}
+      </div>
+      <div class="sidebar-user-info">
+        <span class="sidebar-user-name">{{ auth.user()?.full_name ?? 'My account' }}</span>
+        <span class="sidebar-user-email">{{ auth.user()?.email }}</span>
+      </div>
+      <button class="sidebar-logout" (click)="auth.logout()" title="Log out">↪</button>
+    </div>
+  </aside>
+
+  <main class="shell-main">
+    <router-outlet />
+  </main>
+</div>

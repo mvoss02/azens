@@ -1,0 +1,60 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Settings</h1>
+    <p class="page-sub">Manage your profile and preferences.</p>
+  </div>
+
+  <!-- Profile section -->
+  <div class="section-card">
+    <h2>Profile</h2>
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <div class="form-fields">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <div class="form-static">{{ auth.user()?.email }}</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="full_name">Full name</label>
+          <input id="full_name" type="text" class="form-input" formControlName="full_name" placeholder="Your name" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="seniority_level">Seniority level</label>
+          <select id="seniority_level" class="form-input" formControlName="seniority_level">
+            @for (opt of seniorityOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+          <span class="form-hint">Used as the default for new sessions. You can override per session.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="preferred_language">Preferred language</label>
+          <select id="preferred_language" class="form-input" formControlName="preferred_language">
+            @for (opt of languageOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        @if (saveMessage()) {
+          <div class="save-msg">{{ saveMessage() }}</div>
+        }
+
+        <button type="submit" class="btn btn-primary save-btn" [disabled]="isSaving()">
+          {{ isSaving() ? 'Saving...' : 'Save changes' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="section-card danger-zone">
+    <h2>Danger zone</h2>
+    <p>Permanently delete your account and all associated data — CVs, sessions, transcripts, feedback. This cannot be undone. Your subscription will expire immediately. In case you simply want to terminate your subscription, wtithout loosing access, head to the billings page.</p>
+    <button class="btn btn-danger" (click)="deleteAccount()" [disabled]="isDeleting()">
+      {{ isDeleting() ? 'Deleting...' : 'Delete my account' }}
+    </button>
+  </div>
+</div>

@@ -1,0 +1,138 @@
+.page { max-width: 640px; margin: 0 auto; }
+
+.page-header { margin-bottom: 28px; }
+.page-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: -0.02em; }
+.page-sub { margin-top: 4px; font-size: 14px; color: var(--color-text-faint); }
+
+.section { margin-bottom: 28px; }
+.section-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+
+.empty-state {
+  padding: 24px; text-align: center; font-size: 13.5px; color: var(--color-text-faint);
+  background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 14px;
+}
+.empty-state p { margin: 0; }
+
+/* ── Upload ───────────────────────────────────────── */
+
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px;
+  border: 1.5px dashed var(--color-border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: 0.2s ease;
+  text-align: center;
+  margin-bottom: 16px;
+  background: var(--color-bg-alt);
+}
+
+.upload-area:hover {
+  border-color: var(--color-amber);
+  background: rgba(232, 122, 58, 0.03);
+}
+
+.upload-area.uploading {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.upload-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(232, 122, 58, 0.08);
+  color: var(--color-amber);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.upload-area p { font-size: 14px; margin: 0; }
+.upload-hint { font-size: 12px; color: var(--color-text-faint); }
+.upload-status { font-size: 14px; color: var(--color-text-faint); }
+
+.error-msg {
+  font-size: 13px;
+  color: var(--color-error);
+  background: rgba(192, 57, 43, 0.06);
+  border: 1px solid rgba(192, 57, 43, 0.12);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.empty {
+  font-size: 13.5px;
+  color: var(--color-text-faint);
+  text-align: center;
+  padding: 24px;
+}
+
+/* ── CV list ──────────────────────────────────────── */
+
+.cv-list { display: flex; flex-direction: column; gap: 8px; }
+
+.cv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--color-bg-alt);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+}
+
+.cv-row.active { border-color: var(--color-success); }
+
+.cv-info { flex: 1; min-width: 0; }
+
+.cv-name-row { display: flex; align-items: center; gap: 8px; }
+
+.cv-filename {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cv-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(45, 122, 79, 0.08);
+  color: var(--color-success);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cv-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-faint);
+  margin-top: 3px;
+}
+
+.cv-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.btn-sm { padding: 6px 12px; font-size: 12.5px; }
+
+.btn-delete {
+  font-size: 12.5px;
+  color: var(--color-error);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  transition: 0.15s ease;
+}
+
+.btn-delete:hover {
+  background: rgba(192, 57, 43, 0.06);
+}
