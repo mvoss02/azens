@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from openai import AsyncOpenAI
@@ -14,6 +15,8 @@ from prompts.feedback import (
     build_knowledge_drill_feedback_prompt,
 )
 from schemas.feedback_llm import CVScreenFeedback, KnowledgeDrillFeedback
+
+logger = logging.getLogger(__name__)
 
 _client = AsyncOpenAI(api_key=settings_feedback.openai_api_key)
 
@@ -80,7 +83,9 @@ async def generate_and_save_feedback(session_id: UUID):
         curr_sess = result.scalar_one_or_none()
 
         if not curr_sess:
-            print(f'Session {session_id} not found, skipping feedback')
+            # Shouldn't happen — session row was just created before /end fired.
+            # Treat as a bug signal, not a silent skip.
+            logger.error('Session %s not found, skipping feedback', session_id)
             return
 
         # 2. Load transcript (concat all transcript rows for this session)
@@ -92,7 +97,11 @@ async def generate_and_save_feedback(session_id: UUID):
         transcripts = result.scalars().all()
 
         if not transcripts:
-            print(f'No transcript for session {session_id}, skipping feedback')
+            # User likely disconnected before saying anything — recoverable,
+            # but worth noticing in case it starts happening often.
+            logger.warning(
+                'No transcript for session %s, skipping feedback', session_id
+            )
             return
 
         formatted_transcript = '\n'.join(f'{t.role}: {t.content}' for t in transcripts)

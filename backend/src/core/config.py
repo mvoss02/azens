@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # DEBUG
     debug: bool = False
 
+    # LOGGING (DEBUG | INFO | WARNING | ERROR)
+    log_level: str = 'INFO'
+
     # BACKEND
     backend_url: str = 'http://localhost:8080'
     service_api_key: str

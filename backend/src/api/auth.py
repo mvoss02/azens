@@ -395,7 +395,7 @@ async def delete_account(user_id: UUID = Depends(get_current_user_id), db: Async
     
     for cv in cvs:
         # Delete in Blob
-        delete_object(cv.s3_key)
+        await delete_object(cv.s3_key)
         
         # Delete in DB
         await db.delete(cv)

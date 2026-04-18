@@ -46,7 +46,7 @@ def delete_object(s3_key: str) -> None:
 
 def download_file(s3_key: str) -> bytes:
     response = s3_client.get_object(
-        Bucket=settings_blob.s3_bucket_name,
+        Bucket=settings_blob.aws_s3_bucket_name,
         Key=s3_key,
     )
     return response['Body'].read()

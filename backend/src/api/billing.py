@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -10,9 +11,12 @@ from api.deps import get_current_user_id
 from core.config import settings as settings_billing
 from core.database import get_db
 from models.enums import SubscriptionPlan
+from models.processed_stripe_event import ProcessedStripeEvent
 from models.subscription import Subscription
 from models.user import User
 from schemas.billing import CheckoutRequest, SubscriptionResponse
+
+logger = logging.getLogger(__name__)
 
 stripe.api_key = settings_billing.stripe_api_key
 router = APIRouter()
@@ -66,6 +70,28 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
         payload, sig, settings_billing.stripe_webhook_secret
     )
 
+    # Idempotency gate — if we've already processed this event_id, ack and skip.
+    # Stripe may redeliver the same event (network retries, manual replays).
+    # The PK on event_id makes duplicate inserts impossible; on race, one worker
+    # wins, the other gets IntegrityError on flush and the whole txn rolls back
+    # so Stripe retries — on retry the SELECT below catches it.
+    existing = await db.execute(
+        select(ProcessedStripeEvent).where(
+            ProcessedStripeEvent.event_id == event['id']
+        )
+    )
+    if existing.scalar_one_or_none():
+        logger.info('Duplicate Stripe event %s — skipping', event['id'])
+        return {'received': True}
+
+    db.add(ProcessedStripeEvent(event_id=event['id'], event_type=event['type']))
+    await db.flush()
+
+    # Stripe event timestamp — used to reject stale out-of-order deliveries
+    # on updated/deleted events (an old update arriving after a newer one
+    # must not roll the Subscription row back).
+    event_created = datetime.fromtimestamp(event['created'], tz=UTC)
+
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         user_id = session['metadata']['user_id']
@@ -92,6 +118,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
                 stripe_subscription_id=session['subscription'],
                 billing_cycle=interval,
                 current_period_end=datetime.fromtimestamp(period_end, tz=UTC),
+                last_stripe_event_at=event_created,
             )
             db.add(new_sub)
             await db.flush()  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
@@ -103,6 +130,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             sub.stripe_subscription_id = session['subscription']
             sub.billing_cycle = interval
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
+            sub.last_stripe_event_at = event_created
 
     elif event['type'] == 'customer.subscription.updated':
         stripe_sub = event['data']['object']
@@ -114,10 +142,21 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
         )
         sub = result.scalar_one_or_none()
 
+        # Missing sub = event arrived before checkout.session.completed (Stripe
+        # does not guarantee order). Ack with 2xx so Stripe stops retrying — the
+        # checkout event will create the row when it arrives.
         if not sub:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, detail='Subscription not found'
+            logger.warning(
+                'Stripe update for unknown sub %s — acking', stripe_sub['id']
             )
+            return {'received': True}
+
+        # Reject stale events — we've already applied a newer one to this row.
+        if sub.last_stripe_event_at and sub.last_stripe_event_at >= event_created:
+            logger.warning(
+                'Stale Stripe update for sub %s — skipping', stripe_sub['id']
+            )
+            return {'received': True}
 
         if stripe_sub.get('cancel_at_period_end'):
             # User cancelled — still active until period end
@@ -128,6 +167,8 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             sub.plan = PRICE_TO_PLAN.get(price_id, sub.plan)
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
 
+        sub.last_stripe_event_at = event_created
+
     elif event['type'] == 'customer.subscription.deleted':
         stripe_sub = event['data']['object']
         result = await db.execute(
@@ -137,14 +178,24 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
         )
         sub = result.scalar_one_or_none()
 
-        # Mark sub as inactive
+        # Missing sub = row never existed or was already wiped. Ack and move on.
         if not sub:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, detail='Subscription not found'
+            logger.warning(
+                'Stripe delete for unknown sub %s — acking', stripe_sub['id']
             )
+            return {'received': True}
+
+        # Reject stale deletes — a replay after the user has resubscribed must
+        # not deactivate a healthy row.
+        if sub.last_stripe_event_at and sub.last_stripe_event_at >= event_created:
+            logger.warning(
+                'Stale Stripe delete for sub %s — skipping', stripe_sub['id']
+            )
+            return {'received': True}
 
         sub.plan = None
         sub.is_active = False
+        sub.last_stripe_event_at = event_created
 
     return {'received': True}
 

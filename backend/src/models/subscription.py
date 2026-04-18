@@ -43,6 +43,12 @@ class Subscription(Base):
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Timestamp of the most recent Stripe event applied to this row.
+    # Used to reject stale/out-of-order webhook deliveries.
+    last_stripe_event_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
     )

@@ -8,6 +8,11 @@ from api.cvs import router as router_cv
 from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 from api.transcripts import router as router_transcripts
+from core.logging import setup_logging
+
+# Configure stdlib logging before anything else so import-time log lines
+# (e.g. from services module globals) use our format, not the default.
+setup_logging()
 
 app = FastAPI(
     title='Azens FastAPI Swagger',

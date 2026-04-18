@@ -1,8 +1,11 @@
+import logging
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from core.config import settings as settings_email
+
+logger = logging.getLogger(__name__)
 
 
 def send_email(to: str, subject: str, html_body: str) -> None:
@@ -13,8 +16,9 @@ def send_email(to: str, subject: str, html_body: str) -> None:
     msg.attach(MIMEText(html_body, 'html'))
 
     if not settings_email.smtp_host:
-        print(f'[EMAIL] To: {to}, Subject: {subject}')
-        print(msg.as_string())
+        # Dev stub — dump the would-be email so you can grab the token locally.
+        logger.debug('Email stub to %s, subject %s', to, subject)
+        logger.debug('%s', msg.as_string())
         return
 
     with smtplib.SMTP(settings_email.smtp_host, settings_email.smtp_port) as server:

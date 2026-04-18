@@ -13,6 +13,9 @@ from models.cv import (
 from models.feedback import (
     Feedback,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
+from models.processed_stripe_event import (
+    ProcessedStripeEvent,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
 from models.question import (
     Question,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
