@@ -25,6 +25,7 @@ from schemas.auth import (
     ResetPasswordRequest,
     SignUp,
     TokenResponse,
+    UpdateProfileRequest,
     UserResponse,
 )
 from services.email import send_password_reset_email, send_verification_email
@@ -103,6 +104,26 @@ async def me(
 
     # 2. Return user
     return existing_user
+
+
+@router.put('/me', response_model=UserResponse, status_code=status.HTTP_200_OK)
+async def update_me(
+    body: UpdateProfileRequest,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='User not found')
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+
+    await db.flush()
+    await db.refresh(user)
+    return user
 
 
 @router.get('/google', status_code=status.HTTP_200_OK)

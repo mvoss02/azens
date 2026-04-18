@@ -32,6 +32,12 @@ class UserResponse(BaseModel):
     is_verified: bool
 
 
+class UpdateProfileRequest(BaseModel):
+    full_name: str | None = None
+    seniority_level: SeniorityLevel | None = None
+    preferred_language: Language | None = None
+
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
