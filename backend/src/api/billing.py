@@ -150,7 +150,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
 
 
 @router.get(
-    '/subscription', response_model=SubscriptionResponse, status_code=status.HTTP_200_OK
+    '/subscription', response_model=SubscriptionResponse | None, status_code=status.HTTP_200_OK
 )
 async def subscription(
     user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)

@@ -367,7 +367,7 @@
               <li [class.muted]="!feat.included">{{ feat.text }}</li>
             }
           </ul>
-          <a class="btn" [class.btn-primary]="plan.featured" [class.btn-ghost]="!plan.featured" routerLink="/auth/signup">{{ plan.cta }}</a>
+          <a class="btn" [class.btn-primary]="plan.featured" [class.btn-ghost]="!plan.featured" routerLink="/auth/signup" [queryParams]="{plan: plan.slug}">{{ plan.cta }}</a>
         </div>
       }
     </div>

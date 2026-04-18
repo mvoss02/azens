@@ -1,0 +1,131 @@
+<div class="page">
+  <div class="page-header">
+    <a routerLink="/app/dashboard" class="back-link">← Dashboard</a>
+    <h1>Start a session</h1>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="startSession()">
+
+    <!-- Session type -->
+    <div class="section">
+      <h2 class="section-title">Interview type</h2>
+      <div class="type-cards">
+        @for (type of sessionTypes; track type.value) {
+          <button
+            type="button"
+            class="type-card"
+            [class.active]="form.get('session_type')?.value === type.value"
+            (click)="form.patchValue({session_type: type.value})">
+            <h3>{{ type.label }}</h3>
+            <p>{{ type.desc }}</p>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- CV selection (only for CV Screen) -->
+    @if (isCvScreen) {
+      <div class="section">
+        <h2 class="section-title">Select CV</h2>
+        @if (cvs().length === 0) {
+          <div class="empty-hint">
+            <p>No CVs uploaded. <a routerLink="/app/cvs">Upload one first →</a></p>
+          </div>
+        } @else {
+          <div class="cv-options">
+            @for (cv of cvs(); track cv.id) {
+              <button
+                type="button"
+                class="cv-option"
+                [class.selected]="form.get('cv_id')?.value === cv.id"
+                (click)="form.patchValue({cv_id: cv.id})">
+                <span class="cv-option-name">{{ cv.filename }}</span>
+                @if (cv.is_active) {
+                  <span class="cv-active-badge">Active</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Seniority -->
+    <div class="section">
+      <h2 class="section-title">Seniority level</h2>
+      <div class="pill-options">
+        @for (opt of seniorityOptions; track opt.value) {
+          <button
+            type="button"
+            class="pill-option"
+            [class.active]="form.get('seniority_level')?.value === opt.value"
+            (click)="form.patchValue({seniority_level: opt.value})">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Language -->
+    <div class="section">
+      <h2 class="section-title">Language</h2>
+      <div class="pill-options">
+        @for (opt of languageOptions; track opt.value) {
+          <button
+            type="button"
+            class="pill-option"
+            [class.active]="form.get('language')?.value === opt.value"
+            (click)="form.patchValue({language: opt.value})">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Duration -->
+    <div class="section">
+      <h2 class="section-title">Duration</h2>
+      <div class="pill-options">
+        @for (opt of durationOptions; track opt.value) {
+          <button
+            type="button"
+            class="pill-option"
+            [class.active]="form.get('duration_minutes')?.value === opt.value"
+            (click)="form.patchValue({duration_minutes: opt.value})">
+            {{ opt.label }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Personality -->
+    <div class="section">
+      <h2 class="section-title">Interviewer personality</h2>
+      <div class="personality-cards">
+        @for (opt of personalityOptions; track opt.value) {
+          <button
+            type="button"
+            class="personality-card"
+            [class.active]="form.get('personality')?.value === opt.value"
+            (click)="form.patchValue({personality: opt.value})">
+            <h3>{{ opt.label }}</h3>
+            <p>{{ opt.desc }}</p>
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="error-banner">{{ errorMessage() }}</div>
+    }
+
+    <!-- Start button -->
+    <button
+      type="submit"
+      class="btn btn-primary start-btn"
+      [disabled]="isLoading()">
+      {{ isLoading() ? 'Starting...' : 'Start interview →' }}
+    </button>
+
+  </form>
+</div>

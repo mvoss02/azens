@@ -66,6 +66,7 @@ export class LandingComponent {
         ],
         featured: false,
         cta: 'Start on Analyst',
+        slug: 'analyst',
       },
       {
         name: 'Associate',
@@ -81,6 +82,7 @@ export class LandingComponent {
         ],
         featured: true,
         cta: 'Start on Associate',
+        slug: 'associate',
       },
       {
         name: 'Managing Director',
@@ -96,6 +98,7 @@ export class LandingComponent {
         ],
         featured: false,
         cta: 'Start on Managing Director',
+        slug: 'md',
       },
     ];
   });

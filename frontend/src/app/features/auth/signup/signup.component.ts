@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthLayoutComponent } from '../../../shared/components/auth-layout/auth-layout.component';
 import { AuthService } from '../../../core/auth/auth.service';
 import { I18nService } from '../../../core/i18n/i18n.service';
@@ -29,6 +29,7 @@ export class SignupComponent {
     private fb: FormBuilder,
     private auth: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     private i18n: I18nService,
   ) {
@@ -55,7 +56,10 @@ export class SignupComponent {
         this.http.put(`${environment.apiUrl}/auth/me`, {
           preferred_language: this.i18n.backendValue(),
         }).subscribe();
-        this.router.navigate(['/app/dashboard']);
+
+        // Always go to billing after signup — nudge them to pick a plan
+        const plan = this.route.snapshot.queryParamMap.get('plan');
+        this.router.navigate(['/app/billing'], plan ? { queryParams: { plan } } : {});
       },
       error: (err) => {
         this.errorMessage.set(err.error?.detail ?? 'Signup failed. Please try again.');

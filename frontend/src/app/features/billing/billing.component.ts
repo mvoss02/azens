@@ -77,7 +77,22 @@ export class BillingComponent implements OnInit {
     }
 
     this.http.get<Subscription | null>(`${this.api}/subscription`).subscribe({
-      next: (sub) => { this.subscription.set(sub); this.isLoading.set(false); },
+      next: (sub) => {
+        this.subscription.set(sub);
+        this.isLoading.set(false);
+
+        // Auto-trigger checkout if plan param is present and user has no subscription
+        if (!sub || !sub.is_active) {
+          const planSlug = this.route.snapshot.queryParamMap.get('plan');
+          if (planSlug) {
+            const match = this.plans.find(p => p.name.toLowerCase().replace(' ', '-') === planSlug ||
+              p.name.toLowerCase() === planSlug);
+            if (match) {
+              setTimeout(() => this.subscribe(match), 500);
+            }
+          }
+        }
+      },
       error: () => this.isLoading.set(false),
     });
   }
