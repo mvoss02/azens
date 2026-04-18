@@ -6,24 +6,42 @@
 
   <!-- Quick actions -->
   <div class="actions">
-    <a routerLink="/app/sessions/new" [queryParams]="{type: 'cv_screen'}" class="action-card">
-      <div class="action-icon">◈</div>
-      <div>
-        <h3>CV Screening</h3>
-        <p>Get drilled on your CV by a senior interviewer</p>
+    @if (hasActiveSubscription()) {
+      <a routerLink="/app/sessions/new" [queryParams]="{type: 'cv_screen'}" class="action-card">
+        <div class="action-icon">◈</div>
+        <div>
+          <h3>CV Screening</h3>
+          <p>Get drilled on your CV by a senior interviewer</p>
+        </div>
+      </a>
+      <a routerLink="/app/sessions/new" [queryParams]="{type: 'knowledge_drill'}" class="action-card">
+        <div class="action-icon">⬡</div>
+        <div>
+          <h3>Knowledge Drill</h3>
+          <p>Test your technical finance knowledge</p>
+        </div>
+      </a>
+    } @else {
+      <div class="action-card disabled">
+        <div class="action-icon">◈</div>
+        <div>
+          <h3>CV Screening</h3>
+          <p>Subscribe to start interview sessions</p>
+        </div>
       </div>
-    </a>
-    <a routerLink="/app/sessions/new" [queryParams]="{type: 'knowledge_drill'}" class="action-card">
-      <div class="action-icon">⬡</div>
-      <div>
-        <h3>Knowledge Drill</h3>
-        <p>Test your technical finance knowledge</p>
+      <div class="action-card disabled">
+        <div class="action-icon">⬡</div>
+        <div>
+          <h3>Knowledge Drill</h3>
+          <p>Subscribe to start interview sessions</p>
+        </div>
       </div>
-    </a>
+      <a routerLink="/app/billing" class="sub-cta">Choose a plan to get started →</a>
+    }
   </div>
 
-  <!-- CV warning -->
-  @if (!hasCv()) {
+  <!-- CV warning — only show if subscribed but no CV -->
+  @if (hasActiveSubscription() && !hasCv()) {
     <div class="banner">
       <div>
         <strong>Upload your CV</strong> to unlock CV screening sessions.

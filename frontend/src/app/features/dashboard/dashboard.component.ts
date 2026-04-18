@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
@@ -16,6 +16,7 @@ export class DashboardComponent implements OnInit {
   hasCv = signal(false);
   subscription = signal<any>(null);
   isLoading = signal(true);
+  hasActiveSubscription = computed(() => this.subscription()?.is_active === true);
 
   constructor(public auth: AuthService, private http: HttpClient) {}
 

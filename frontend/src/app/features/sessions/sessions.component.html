@@ -1,0 +1,42 @@
+<div class="page">
+  <div class="page-header">
+    <div class="header-row">
+      <h1>Sessions</h1>
+      <a routerLink="/app/sessions/new" class="btn btn-primary">New session →</a>
+    </div>
+    <p class="page-sub">Your interview history.</p>
+  </div>
+
+  @if (isLoading()) {
+    <p class="empty">Loading...</p>
+  } @else if (sessions().length === 0) {
+    <div class="empty-state">
+      <p>No sessions yet. Start your first interview to see it here.</p>
+      <a routerLink="/app/sessions/new" class="btn btn-primary" style="margin-top:12px">Start a session</a>
+    </div>
+  } @else {
+    <div class="session-list">
+      @for (session of sessions(); track session.id) {
+        <div class="session-card">
+          <div class="session-top">
+            <span class="session-type mono">{{ typeLabel(session.session_type) }}</span>
+            <span class="session-status" [class]="session.status">{{ session.status }}</span>
+          </div>
+          <div class="session-details">
+            <span>{{ formatDate(session.created_at) }} · {{ formatTime(session.started_at) }}</span>
+            <span>{{ duration(session) }}</span>
+            @if (session.seniority_level) {
+              <span>{{ session.seniority_level }}</span>
+            }
+            <span>{{ session.language }}</span>
+          </div>
+          <div class="session-actions">
+            @if (session.status === 'completed') {
+              <a [routerLink]="['/app/feedback', session.id]" class="btn btn-ghost btn-sm">View feedback →</a>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

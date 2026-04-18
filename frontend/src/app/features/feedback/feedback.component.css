@@ -1,0 +1,203 @@
+.page { max-width: 680px; margin: 0 auto; }
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: -0.02em; margin-top: 8px; }
+
+.back-link { font-size: 13px; color: var(--color-text-faint); font-weight: 500; }
+.back-link:hover { color: var(--color-amber); }
+
+.empty { font-size: 13.5px; color: var(--color-text-faint); }
+
+.error-state {
+  text-align: center; padding: 32px;
+  background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 16px;
+  font-size: 14px; color: var(--color-text-faint);
+}
+
+/* ── Report header ────────────────────────────────── */
+
+.report-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px; background: var(--color-bg-alt); border: 1px solid var(--color-border);
+  border-radius: 16px; margin-bottom: 20px; gap: 16px;
+}
+
+.report-type { font-size: 11px; color: var(--color-text-faint); display: block; margin-bottom: 4px; }
+.report-date { font-size: 13px; color: var(--color-text-faint); }
+
+.overall-score { display: flex; align-items: baseline; gap: 4px; }
+.score-big { font-family: var(--font-display); font-style: italic; font-size: 48px; color: var(--color-amber); line-height: 1; }
+.score-of { font-family: var(--font-display); font-size: 18px; color: var(--color-text-faint); }
+
+/* ── Sections ─────────────────────────────────────── */
+
+.section {
+  background: var(--color-bg-alt); border: 1px solid var(--color-border);
+  border-radius: 16px; padding: 20px 24px; margin-bottom: 12px;
+}
+
+.section h2 { font-size: 14px; font-weight: 600; margin: 0 0 14px; }
+
+.summary-text { font-size: 14px; color: var(--color-text-muted); line-height: 1.6; margin: 0; }
+
+/* ── Score bars ───────────────────────────────────── */
+
+.score-bars { display: flex; flex-direction: column; gap: 10px; }
+
+.score-row {
+  display: grid; grid-template-columns: 140px 1fr 32px;
+  gap: 12px; align-items: center; font-size: 13px;
+}
+
+.score-label { color: var(--color-text-muted); text-transform: capitalize; }
+
+.score-bar {
+  height: 6px; border-radius: 99px; background: var(--color-border);
+  overflow: hidden;
+}
+
+.score-fill {
+  height: 100%; border-radius: 99px; transition: width 0.4s ease;
+}
+
+.score-val {
+  font-family: var(--font-mono); font-size: 12px; color: var(--color-text-muted); text-align: right;
+}
+
+/* ── Feedback lists ───────────────────────────────── */
+
+.feedback-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 13.5px; color: var(--color-text-muted); line-height: 1.5;
+}
+
+.feedback-list li {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 14px; border-radius: 10px;
+}
+
+.feedback-list li::before { font-weight: 700; flex-shrink: 0; }
+
+.strengths li { background: rgba(45, 122, 79, 0.05); }
+.strengths li::before { content: "✓"; color: var(--color-success); }
+
+.weaknesses li { background: rgba(232, 122, 58, 0.05); }
+.weaknesses li::before { content: "△"; color: var(--color-amber); }
+
+.recommendations li { background: rgba(21, 19, 17, 0.03); }
+.recommendations li::before { content: "→"; color: var(--color-text-faint); }
+
+/* ── Topic breakdown ──────────────────────────────── */
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.topic-box {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.topic-name {
+  font-size: 11px;
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.topic-ratio {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.topic-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--color-border);
+  gap: 1px;
+}
+
+.topic-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.topic-fill.correct { background: var(--color-success); }
+.topic-fill.partial { background: var(--color-amber); }
+.topic-fill.wrong { background: var(--color-error); }
+
+.topic-legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.legend-item {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-item::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+}
+
+.correct-legend::before { background: var(--color-success); }
+.partial-legend::before { background: var(--color-amber); }
+.wrong-legend::before { background: var(--color-error); }
+
+.correct-legend { color: var(--color-success); }
+.partial-legend { color: var(--color-amber); }
+.wrong-legend { color: var(--color-error); }
+
+/* ── Knowledge drill evaluations ──────────────────── */
+
+.eval-list { display: flex; flex-direction: column; gap: 8px; }
+
+.eval-row {
+  padding: 12px 16px; border-radius: 12px; font-size: 13.5px;
+}
+
+.eval-row.correct { background: rgba(45, 122, 79, 0.05); }
+.eval-row.partial { background: rgba(232, 122, 58, 0.05); }
+.eval-row.wrong { background: rgba(192, 57, 43, 0.05); }
+
+.eval-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+.eval-topic { font-size: 10.5px; color: var(--color-text-faint); text-transform: uppercase; }
+
+.eval-verdict {
+  font-family: var(--font-mono); font-size: 10.5px; padding: 2px 8px;
+  border-radius: var(--radius-pill); text-transform: uppercase;
+}
+
+.correct .eval-verdict { background: rgba(45, 122, 79, 0.1); color: var(--color-success); }
+.partial .eval-verdict { background: rgba(232, 122, 58, 0.1); color: var(--color-amber); }
+.wrong .eval-verdict { background: rgba(192, 57, 43, 0.1); color: var(--color-error); }
+
+.eval-explanation { color: var(--color-text-muted); line-height: 1.5; margin: 0; }
+
+@media (max-width: 768px) {
+  .score-row { grid-template-columns: 100px 1fr 28px; }
+  .report-header { flex-direction: column; }
+}

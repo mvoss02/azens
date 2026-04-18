@@ -54,8 +54,8 @@ export class SessionSetupComponent implements OnInit {
 
   readonly personalityOptions = [
     { value: 'supportive', label: 'Supportive', desc: 'Encouraging, patient, helps you showcase your knowledge' },
-    { value: 'balanced', label: 'Balanced', desc: 'Fair and professional — probes but doesn\'t pressure' },
-    { value: 'strict', label: 'Strict', desc: 'Demanding and thorough — expects precise answers' },
+    { value: 'balanced', label: 'Balanced', desc: 'Fair and professional: probes but doesn\'t pressure' },
+    { value: 'strict', label: 'Strict', desc: 'Demanding and thorough: expects precise answers' },
   ];
 
   constructor(
@@ -77,6 +77,16 @@ export class SessionSetupComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Check subscription — redirect to billing if not subscribed
+    this.http.get<any>(`${environment.apiUrl}/billing/subscription`).subscribe({
+      next: (sub) => {
+        if (!sub || !sub.is_active) {
+          this.router.navigate(['/app/billing']);
+        }
+      },
+      error: () => this.router.navigate(['/app/billing']),
+    });
+
     // Pre-select type from query param if provided
     const type = this.route.snapshot.queryParamMap.get('type');
     if (type && (type === 'cv_screen' || type === 'knowledge_drill')) {

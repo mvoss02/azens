@@ -1,0 +1,99 @@
+<div class="page">
+  <div class="page-header">
+    <div class="header-row">
+      <h1>Question Pool</h1>
+      <button class="btn btn-primary" (click)="openCreate()">Add question</button>
+    </div>
+    <p class="page-sub">Manage knowledge drill questions.</p>
+  </div>
+
+  @if (isLoading()) {
+    <p class="empty">Loading...</p>
+  } @else if (questions().length === 0) {
+    <div class="empty-state">
+      <p>No questions yet. Click "Add question" to create your first one.</p>
+    </div>
+  } @else {
+    <div class="question-list">
+      @for (q of questions(); track q.id) {
+        <div class="question-card">
+          <div class="question-main">
+            <p class="question-text">{{ q.question }}</p>
+            <div class="question-meta">
+              <span class="q-tag">{{ q.topic }}</span>
+              <span class="q-tag">{{ q.difficulty }}</span>
+              <span class="q-tag">{{ q.seniority_level }}</span>
+              <span class="q-tag">{{ q.language }}</span>
+            </div>
+          </div>
+          <div class="question-actions">
+            <button class="btn btn-ghost btn-sm" (click)="openEdit(q)">Edit</button>
+            <button class="btn-delete" (click)="deleteQuestion(q)">Delete</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Form overlay -->
+@if (showForm()) {
+  <div class="overlay" (click)="closeForm()">
+    <div class="form-panel" (click)="$event.stopPropagation()">
+      <h2>{{ editingId() ? 'Edit' : 'New' }} question</h2>
+
+      <form [formGroup]="form" (ngSubmit)="save()" class="form-fields">
+        <div class="form-group">
+          <label class="form-label">Question</label>
+          <textarea class="form-input form-textarea" formControlName="question" rows="3" placeholder="Walk me through a DCF..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Model answer</label>
+          <textarea class="form-input form-textarea" formControlName="answer" rows="4" placeholder="A strong answer would cover..."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Topic</label>
+            <select class="form-input" formControlName="topic">
+              @for (t of topics; track t) {
+                <option [value]="t">{{ t }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Difficulty</label>
+            <select class="form-input" formControlName="difficulty">
+              @for (d of difficulties; track d) {
+                <option [value]="d">{{ d }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Seniority</label>
+            <select class="form-input" formControlName="seniority_level">
+              @for (s of seniorities; track s) {
+                <option [value]="s">{{ s }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Language</label>
+          <select class="form-input" formControlName="language">
+            @for (l of languages; track l) {
+              <option [value]="l">{{ l }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="form.invalid">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+}

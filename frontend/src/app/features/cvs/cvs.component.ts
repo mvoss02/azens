@@ -1,5 +1,6 @@
 import { Component, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
 
 interface CvItem {
@@ -26,9 +27,19 @@ export class CvsComponent implements OnInit {
 
   private readonly api = `${environment.apiUrl}/cv`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void {
+    // Check subscription — redirect to billing if not subscribed
+    this.http.get<any>(`${environment.apiUrl}/billing/subscription`).subscribe({
+      next: (sub) => {
+        if (!sub || !sub.is_active) {
+          this.router.navigate(['/app/billing']);
+        }
+      },
+      error: () => this.router.navigate(['/app/billing']),
+    });
+
     this.loadCvs();
   }
 

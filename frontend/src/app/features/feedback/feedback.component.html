@@ -1,0 +1,138 @@
+<div class="page">
+  <div class="page-header">
+    <a routerLink="/app/sessions" class="back-link">← Back to sessions</a>
+    <h1>Feedback report</h1>
+  </div>
+
+  @if (isLoading()) {
+    <p class="empty">Loading feedback...</p>
+  } @else if (errorMessage()) {
+    <div class="error-state">
+      <p>{{ errorMessage() }}</p>
+      <a routerLink="/app/sessions" class="btn btn-ghost" style="margin-top:12px">Back to sessions</a>
+    </div>
+  } @else if (feedback()) {
+
+    <!-- Header -->
+    <div class="report-header">
+      <div>
+        <span class="mono report-type">{{ feedback()!.feedback_type | uppercase }}</span>
+        <span class="report-date">{{ formatDate(feedback()!.generated_at) }}</span>
+      </div>
+      @if (data.overall_score) {
+        <div class="overall-score">
+          <span class="score-big">{{ data.overall_score }}</span>
+          <span class="score-of">/ 10</span>
+        </div>
+      }
+    </div>
+
+    <!-- Summary -->
+    @if (data.summary) {
+      <div class="section">
+        <h2>Summary</h2>
+        <p class="summary-text">{{ data.summary }}</p>
+      </div>
+    }
+
+    <!-- Category scores -->
+    @if (categoryScores.length > 0) {
+      <div class="section">
+        <h2>Scores by category</h2>
+        <div class="score-bars">
+          @for (cat of categoryScores; track cat.label) {
+            <div class="score-row">
+              <span class="score-label">{{ cat.label }}</span>
+              <div class="score-bar">
+                <div class="score-fill" [style.width]="barWidth(cat.value)" [style.background]="scoreColor(cat.value)"></div>
+              </div>
+              <span class="score-val">{{ cat.value }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Strengths -->
+    @if (data.strengths?.length > 0) {
+      <div class="section">
+        <h2>Strengths</h2>
+        <ul class="feedback-list strengths">
+          @for (s of data.strengths; track s) {
+            <li>{{ s }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Weaknesses -->
+    @if (data.weaknesses?.length > 0) {
+      <div class="section">
+        <h2>Areas to improve</h2>
+        <ul class="feedback-list weaknesses">
+          @for (w of data.weaknesses; track w) {
+            <li>{{ w }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Recommendations -->
+    @if (data.recommendations?.length > 0) {
+      <div class="section">
+        <h2>Recommendations</h2>
+        <ul class="feedback-list recommendations">
+          @for (r of data.recommendations; track r) {
+            <li>{{ r }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <!-- Topic breakdown (knowledge drills) -->
+    @if (topicBreakdown.length > 0) {
+      <div class="section">
+        <h2>Performance by topic</h2>
+        <div class="topic-grid">
+          @for (tb of topicBreakdown; track tb.topic) {
+            <div class="topic-box">
+              <div class="topic-header">
+                <span class="mono topic-name">{{ tb.topic }}</span>
+                <span class="topic-ratio">{{ tb.correct }} / {{ tb.total }}</span>
+              </div>
+              <div class="topic-bar">
+                <div class="topic-fill correct" [style.width]="topicBarWidth(tb.correct, tb.total)"></div>
+                <div class="topic-fill partial" [style.width]="topicBarWidth(tb.partial, tb.total)"></div>
+                <div class="topic-fill wrong" [style.width]="topicBarWidth(tb.wrong, tb.total)"></div>
+              </div>
+              <div class="topic-legend">
+                @if (tb.correct > 0) { <span class="legend-item correct-legend">{{ tb.correct }} correct</span> }
+                @if (tb.partial > 0) { <span class="legend-item partial-legend">{{ tb.partial }} partial</span> }
+                @if (tb.wrong > 0) { <span class="legend-item wrong-legend">{{ tb.wrong }} wrong</span> }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Knowledge drill evaluations -->
+    @if (data.evaluations?.length > 0) {
+      <div class="section">
+        <h2>Question evaluations</h2>
+        <div class="eval-list">
+          @for (ev of data.evaluations; track ev.question_id) {
+            <div class="eval-row" [class]="ev.verdict">
+              <div class="eval-top">
+                <span class="mono eval-topic">{{ ev.topic }}</span>
+                <span class="eval-verdict">{{ ev.verdict }}</span>
+              </div>
+              <p class="eval-explanation">{{ ev.explanation }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+  }
+</div>
