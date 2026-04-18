@@ -10,11 +10,11 @@ class Settings(BaseSettings):
 
     # DEBUG
     debug: bool = False
-    
+
     # BACKEND
-    backend_url: str = "http://localhost:8080"
+    backend_url: str = 'http://localhost:8080'
     service_api_key: str
-    
+
     # DB
     database_url: str
     secret_key: str
@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     openai_model_feedback: str
     openai_model_interviews: str
-    
+
     # DAILY
     daily_api_key: str
     daily_room_url: str
@@ -76,11 +76,12 @@ class Settings(BaseSettings):
 
     # DEEPGRAM (STT/TTS)
     deepgram_api_key: str
-    
+
     # PIPECAT
     pipecat_api_key: str
     pipecat_agent_name_cv: str
     pipecat_agent_name_knowledge: str
     pipecat_agent_name_case_study: str
+
 
 settings = Settings()

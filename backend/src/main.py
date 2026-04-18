@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from api.admin import router as router_admin
 from api.auth import router as router_auth
@@ -7,7 +8,6 @@ from api.cvs import router as router_cv
 from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 from api.transcripts import router as router_transcripts
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title='Azens FastAPI Swagger',
@@ -16,10 +16,12 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # lock down in production to: ["https://www.azens.net"], so only frontend can call this API
+    allow_origins=[
+        '*'
+    ],  # lock down in production to: ["https://www.azens.net"], so only frontend can call this API
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 app.include_router(router_auth, prefix='/api/v1/auth', tags=['auth'])
@@ -28,7 +30,9 @@ app.include_router(router_cv, prefix='/api/v1/cv', tags=['cv'])
 app.include_router(router_billing, prefix='/api/v1/billing', tags=['billing'])
 app.include_router(router_session, prefix='/api/v1/session', tags=['session'])
 app.include_router(router_feedback, prefix='/api/v1/feedback', tags=['feedback'])
-app.include_router(router_transcripts, prefix='/api/v1/transcripts', tags=['transcripts'])
+app.include_router(
+    router_transcripts, prefix='/api/v1/transcripts', tags=['transcripts']
+)
 
 
 @app.get('/health')

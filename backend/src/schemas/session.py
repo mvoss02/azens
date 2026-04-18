@@ -18,7 +18,7 @@ class SessionRequest(BaseModel):
     seniority_level: SeniorityLevel | None
     language: Language
     duration_minutes: SessionDuration
-    personality: str = "balanced"
+    personality: str = 'balanced'
 
 
 class StartSessionResponse(BaseModel):
