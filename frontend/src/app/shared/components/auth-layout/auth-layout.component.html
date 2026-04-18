@@ -1,0 +1,17 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <a routerLink="/" class="auth-logo">
+      <span class="auth-logo-mark">𝒜</span>
+      <span>Azens</span>
+    </a>
+
+    <div class="auth-header">
+      <h1>{{ title }}</h1>
+      @if (subtitle) {
+        <p class="auth-subtitle">{{ subtitle }}</p>
+      }
+    </div>
+
+    <ng-content />
+  </div>
+</div>
