@@ -1,0 +1,422 @@
+<app-nav />
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <span class="tag"><span class="dot"></span>Voice mock interviews for IB &amp; PE</span>
+        <h1>Practice the interview that gets you the <em>offer.</em></h1>
+        <p class="hero-sub">Azens runs realistic voice mock interviews for investment banking and private equity candidates. Trained on your CV, tuned to your seniority, with a full feedback report after every session.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" routerLink="/auth/signup">Get started <span>→</span></a>
+          <a class="btn btn-ghost btn-lg" href="#">▶ Listen to a sample</a>
+        </div>
+        <div class="hero-trust">
+          <span><span class="check">✓</span> Cancel anytime</span>
+          <span><span class="check">✓</span> GDPR · EU-hosted</span>
+          <span><span class="check">✓</span> EN · DE · ES · IT · NL</span>
+        </div>
+      </div>
+
+      <!-- Product card with tabs -->
+      <div class="product-card-wrapper">
+        <div class="product-tabs">
+          <button class="product-tab" [class.active]="activeTab() === 'cv'" (click)="setTab('cv')">
+            <span class="tab-dot cv-dot"></span>CV Screen
+          </button>
+          <button class="product-tab" [class.active]="activeTab() === 'drill'" (click)="setTab('drill')">
+            <span class="tab-dot drill-dot"></span>Knowledge Drill
+          </button>
+          <button class="product-tab" [class.active]="activeTab() === 'case'" (click)="setTab('case')">
+            <span class="tab-dot case-dot"></span>Case Studies
+          </button>
+        </div>
+
+        <!-- Tab 1: CV Screen -->
+        @if (activeTab() === 'cv') {
+          <div class="product-card">
+            <div class="pc-head">
+              <div class="pc-live"><span class="dot"></span>LIVE · CV SCREEN</div>
+              <div class="pc-timer">28:14 / 45:00</div>
+            </div>
+            <div class="pc-orb"><div class="orb"></div></div>
+            <div class="pc-waveform"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="pc-transcript">
+              <div class="pc-line">
+                <div class="who">YOU</div>
+                <div>"We advised on a €480M carve-out — I ran the operating model and built the DCF bridge."</div>
+              </div>
+              <div class="pc-line bot">
+                <div class="who">ALEX</div>
+                <div>"Walk me through the bridge. Why does your unlevered FCF drop in year two?"</div>
+              </div>
+            </div>
+            <div class="pc-foot">
+              <div class="pc-mic"><span>● MIC ON</span><span>EN</span></div>
+              <a routerLink="/auth/signup" class="pc-btn">Start yours →</a>
+            </div>
+          </div>
+        }
+
+        <!-- Tab 2: Knowledge Drill -->
+        @if (activeTab() === 'drill') {
+          <div class="product-card product-card-drill">
+            <div class="pc-head">
+              <div class="pc-live"><span class="dot drill-dot-live"></span>LIVE · KNOWLEDGE DRILL</div>
+              <div class="pc-timer">12:38 / 30:00</div>
+            </div>
+            <div class="pc-orb"><div class="orb"></div></div>
+            <div class="pc-waveform"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="pc-transcript">
+              <div class="pc-line bot">
+                <div class="who">ALEX</div>
+                <div>"Walk me through the three main ways to value a company — and when you'd pick one over the other."</div>
+              </div>
+              <div class="pc-line">
+                <div class="who">YOU</div>
+                <div>"So you've got DCF, comps, and precedent transactions. I'd start with comps for a quick sanity check, then…"</div>
+              </div>
+            </div>
+            <div class="pc-foot">
+              <div class="pc-mic"><span>● MIC ON</span><span>EN</span></div>
+              <a routerLink="/auth/signup" class="pc-btn">Try a drill →</a>
+            </div>
+          </div>
+        }
+
+        <!-- Tab 3: Case Studies (Coming Soon) -->
+        @if (activeTab() === 'case') {
+          <div class="product-card product-card-case">
+            <div class="coming-soon-card">
+              <div class="coming-soon-badge">
+                <span class="dot case-dot-live"></span>
+                COMING Q2 2026
+              </div>
+              <h3 class="coming-soon-title">Case <em>studies.</em></h3>
+              <p class="coming-soon-desc">Excel-based LBO, M&A, and DCF cases. Work through them at your pace, then present your logic to the AI interviewer — exactly like a real super-day.</p>
+              <div class="coming-soon-features">
+                <span>Real IB formats</span>
+                <span>·</span>
+                <span>Present verbally</span>
+                <span>·</span>
+                <span>AI pushback</span>
+              </div>
+              <a href="#" class="btn btn-ghost coming-soon-btn">Join the waitlist <span>→</span></a>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="product">
+    <div class="section-head">
+      <div>
+        <span class="meta kicker">The product</span>
+        <h2>Five tools. One <em>goal.</em></h2>
+      </div>
+      <p class="side">Two equal pillars — CV screening and knowledge drills — both powered by a voice AI that sounds real, both followed by a detailed report. Plus case studies coming Q2.</p>
+    </div>
+
+    <!-- Feature 1: Voice AI -->
+    <div class="feature forest">
+      <div class="feature-text">
+        <div class="num">01</div>
+        <span class="meta">Voice AI interviewer</span>
+        <h3>Talk to an interviewer that sounds <em>real.</em></h3>
+        <p>A low-latency voice agent that interrupts, probes and pushes back. Not a chatbot typing replies — an actual voice on the other end of the call.</p>
+        <ul>
+          <li>Natural conversation — interrupts and follow-ups</li>
+          <li>Session length: 15 · 30 · 45 · 60 · 90 min</li>
+          <li>Personality modes: strict · balanced · supportive</li>
+          <li>Available in EN · DE · ES · IT · NL</li>
+        </ul>
+        <a class="btn btn-on-dark" routerLink="/auth/signup">See how it sounds <span>→</span></a>
+      </div>
+      <div class="mock mock-voice">
+        <div class="mock-head">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="title">LIVE · M&amp;A ASSOCIATE</div>
+        </div>
+        <div class="mock-voice-body">
+          <div class="mini-orb"></div>
+          <div class="mock-voice-lines">
+            <div class="pc-line"><div class="who">YOU</div><div>"We advised on a €480M carve-out."</div></div>
+            <div class="pc-line bot"><div class="who">ALEX</div><div>"Why did the board pick a split over a sale?"</div></div>
+          </div>
+        </div>
+        <div class="mock-voice-foot"><span>● MIC ON · EN</span><span>18:42 / 30:00</span></div>
+      </div>
+    </div>
+
+    <!-- Feature 2: CV Screening -->
+    <div class="feature amber reverse">
+      <div class="feature-text">
+        <div class="num">02</div>
+        <span class="meta">CV screening</span>
+        <h3>Defend your deal sheet, line by <em>line.</em></h3>
+        <p>Upload your CV, and the bot reads every deal, every metric, every internship. It then drills you exactly like a senior banker would.</p>
+        <ul>
+          <li>Auto-parses deals, valuations and metrics</li>
+          <li>Seniority-aware: Intern → Analyst → Associate → VP+</li>
+          <li>Personal info stripped before any AI call</li>
+        </ul>
+        <a class="btn btn-dark" routerLink="/auth/signup">Upload a CV <span>→</span></a>
+      </div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="title">CV PARSING</div>
+        </div>
+        <div class="cv-drop">
+          <div class="cv-icon">↑</div>
+          <h4>Drop your CV to start</h4>
+          <p>PDF or DOCX · personal info auto-stripped</p>
+          <div class="cv-file">
+            <div class="ficon">PDF</div>
+            <div class="fmeta">
+              <div class="fname">Associate_CV_2026.pdf</div>
+              <div class="fsub">218 KB · parsing deals…</div>
+            </div>
+            <div class="progress"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature 3: Knowledge Drills -->
+    <div class="feature forest">
+      <div class="feature-text">
+        <div class="num">03</div>
+        <span class="meta">Knowledge drills</span>
+        <h3>Technicals, <em>drilled</em> until they stick.</h3>
+        <p>Rapid-fire questions across DCF, LBO, M&amp;A, accounting and valuation. Difficulty climbs as you get them right.</p>
+        <ul>
+          <li>500+ questions across 5 core IB &amp; PE topics</li>
+          <li>Adaptive difficulty 1 → 3, tuned to your answers</li>
+          <li>Per-topic score breakdown after every drill</li>
+        </ul>
+        <a class="btn btn-on-dark" routerLink="/auth/signup">Run a drill <span>→</span></a>
+      </div>
+      <div class="mock mock-voice">
+        <div class="mock-head">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="title">LIVE · KNOWLEDGE DRILL</div>
+        </div>
+        <div class="mock-voice-body">
+          <div class="mini-orb"></div>
+          <div class="mock-voice-lines">
+            <div class="pc-line bot"><div class="who">ALEX</div><div>"What's the difference between enterprise value and equity value?"</div></div>
+            <div class="pc-line"><div class="who">YOU</div><div>"Enterprise value includes debt and excludes cash, so it represents the total…"</div></div>
+          </div>
+        </div>
+        <div class="mock-voice-foot"><span>● MIC ON · EN</span><span>08:15 / 30:00</span></div>
+      </div>
+    </div>
+
+    <!-- Feature 4: Feedback -->
+    <div class="feature lilac reverse">
+      <div class="feature-text">
+        <div class="num">04</div>
+        <span class="meta">Detailed feedback</span>
+        <h3>A feedback report you can <em>actually</em> act on.</h3>
+        <p>Every session ends with a structured report. Scored across four categories — not a vibe check. Specific strengths, specific weaknesses, exact timestamps from the transcript.</p>
+        <ul>
+          <li>Scored on communication, technical accuracy, structure, confidence</li>
+          <li>Transcript quoted inline with the exact moments that cost you points</li>
+          <li>Three personalised drills auto-queued for tomorrow</li>
+        </ul>
+        <a class="btn btn-dark" routerLink="/auth/signup">See a sample report <span>→</span></a>
+      </div>
+      <div class="mock">
+        <div class="mock-head">
+          <div class="dots"><span></span><span></span><span></span></div>
+          <div class="title">FEEDBACK REPORT · 042</div>
+        </div>
+        <div class="report-head">
+          <div>
+            <h4>CV Screen · <em>M&amp;A Associate</em></h4>
+            <div class="meta" style="margin-top:4px">15 APR 2026</div>
+          </div>
+          <span class="pass-pill">PASSED</span>
+        </div>
+        <div class="score-hero"><span class="big">8.2</span><span class="of">/ 10</span></div>
+        <div class="score-bars">
+          <div class="sb s1"><span class="lbl">Communication</span><div class="bar"></div><span class="val">8.2</span></div>
+          <div class="sb s2"><span class="lbl">Technical accuracy</span><div class="bar"></div><span class="val">7.1</span></div>
+          <div class="sb s3"><span class="lbl">Structure</span><div class="bar"></div><span class="val">9.0</span></div>
+          <div class="sb s4"><span class="lbl">Confidence</span><div class="bar"></div><span class="val">6.4</span></div>
+        </div>
+        <div class="report-strengths">
+          <div><h5>Strengths</h5><ul><li>Clear deal framing</li><li>Strong valuation intuition</li></ul></div>
+          <div><h5>To work on</h5><ul><li>Exit multiple logic</li><li>D&amp;A flow-through</li></ul></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature 5: Case Studies (Coming Soon) -->
+    <div class="feature amber">
+      <div class="feature-text">
+        <div class="num">05</div>
+        <span class="meta">Coming Q2 2026</span>
+        <h3>Excel case studies, <em>presented</em> to the AI.</h3>
+        <p>Pull a real Excel-based case from a pool of dozens — LBO, M&amp;A, DCF, merger models. Work through it offline, then present to the AI interviewer.</p>
+        <ul>
+          <li>Curated pool — real IB &amp; PE case study formats</li>
+          <li>Work at your own pace, then present out loud</li>
+          <li>AI pushes back on assumptions exactly where a live interviewer would</li>
+          <li>Included in Associate &amp; Managing Director plans at no extra cost</li>
+        </ul>
+        <a class="btn btn-dark" href="#">Join the waitlist <span>→</span></a>
+      </div>
+      <div class="mock coming-soon-mock">
+        <div class="coming-soon-overlay">
+          <span class="coming-soon-label">COMING Q2 2026</span>
+          <p>We're building something special. Case studies will let you work through real Excel models and defend your logic to the AI — exactly like a super-day.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIALS -->
+  <section id="testimonials">
+    <div class="section-head">
+      <div>
+        <span class="meta kicker">From real candidates</span>
+        <h2>They practised. They <em>landed it.</em></h2>
+      </div>
+    </div>
+
+    <div class="testimonial-card">
+      <div class="testimonial-content">
+        <blockquote>"{{ testimonials[activeTestimonial()].quote }}"</blockquote>
+        <div class="testimonial-meta">
+          <div class="testimonial-author">
+            <div class="avatar">{{ testimonials[activeTestimonial()].name[0] }}</div>
+            <div class="testimonial-who">
+              <div class="testimonial-name">{{ testimonials[activeTestimonial()].name }}</div>
+              <div class="testimonial-role">{{ testimonials[activeTestimonial()].role }}</div>
+            </div>
+          </div>
+          <div class="testimonial-score">
+            <span class="score-num">{{ testimonials[activeTestimonial()].score }}</span>
+            <span class="score-of">/ 10</span>
+          </div>
+        </div>
+        <div class="testimonial-tags">
+          @for (tag of testimonials[activeTestimonial()].tags; track tag) {
+            <span class="t-tag">{{ tag }}</span>
+          }
+        </div>
+      </div>
+      <div class="testimonial-nav">
+        <button class="t-nav-btn" (click)="prevTestimonial()">←</button>
+        <div class="t-dots">
+          @for (t of testimonials; track t.name; let i = $index) {
+            <button class="t-dot" [class.active]="i === activeTestimonial()" (click)="setTestimonial(i)"></button>
+          }
+        </div>
+        <button class="t-nav-btn" (click)="nextTestimonial()">→</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="section-head">
+      <div>
+        <span class="meta kicker">Pricing</span>
+        <h2>Pick your <em>seat.</em></h2>
+      </div>
+      <p class="side">Plans named after the jobs you're training for. Cancel any time.</p>
+    </div>
+
+    <div class="billing-toggle">
+      <span [class.toggle-label-active]="billingCycle() === 'monthly'">Monthly</span>
+      <button class="toggle-switch" [class.toggle-on]="billingCycle() === 'halfyearly'" (click)="toggleBilling()">
+        <span class="toggle-knob"></span>
+      </button>
+      <span [class.toggle-label-active]="billingCycle() === 'halfyearly'">
+        6 months
+        <span class="save-badge">Save 20%</span>
+      </span>
+    </div>
+
+    <div class="prices">
+      @for (plan of plans(); track plan.name) {
+        <div class="price" [class.featured]="plan.featured">
+          @if (plan.featured) {
+            <span class="ribbon">Most popular</span>
+          }
+          <span class="meta">{{ plan.tier }}</span>
+          <h3>{{ plan.name }}</h3>
+          <div class="p-num">
+            <em>{{ plan.price }}</em><small>{{ plan.period }}</small>
+          </div>
+          @if (plan.saved) {
+            <div class="saved-badge">
+              <span class="saved-amount">You save {{ plan.saved }}</span>
+              vs monthly
+            </div>
+          }
+          <ul>
+            @for (feat of plan.features; track feat.text) {
+              <li [class.muted]="!feat.included">{{ feat.text }}</li>
+            }
+          </ul>
+          <a class="btn" [class.btn-primary]="plan.featured" [class.btn-ghost]="!plan.featured" routerLink="/auth/signup">{{ plan.cta }}</a>
+        </div>
+      }
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="section-head">
+      <div>
+        <span class="meta kicker">FAQ</span>
+        <h2>Questions, <em>answered.</em></h2>
+      </div>
+      <p class="side">Need more? The team replies within the day.</p>
+    </div>
+    <div class="faq">
+      <details class="faq-item" open>
+        <summary>Does the AI actually sound human? <span class="plus"></span></summary>
+        <p>Yes — natural voice, interruptions, follow-up probes. Built on a production voice pipeline with low-latency speech-to-text and natural TTS.</p>
+      </details>
+      <details class="faq-item">
+        <summary>Which languages are supported? <span class="plus"></span></summary>
+        <p>English, German, Spanish, Italian and Dutch. The voice agent runs in the language you pick at session start.</p>
+      </details>
+      <details class="faq-item">
+        <summary>What happens to my CV? <span class="plus"></span></summary>
+        <p>Stored encrypted in EU infrastructure. Phone, address and email are stripped before any AI call. You can delete everything from your dashboard in one click.</p>
+      </details>
+      <details class="faq-item">
+        <summary>How long are the sessions? <span class="plus"></span></summary>
+        <p>You pick. Five lengths: 15, 30, 45, 60 or 90 minutes. Shorter slots are great for a quick drill; longer slots mirror a full super-day round.</p>
+      </details>
+      <details class="faq-item">
+        <summary>When do case studies launch? <span class="plus"></span></summary>
+        <p>Q2 2026. Included in Associate and Managing Director plans at no extra cost.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section>
+    <div class="final-cta">
+      <h2>Start practising <em>today.</em></h2>
+      <p>Pick your plan, upload your CV, and run your first session in under five minutes. Cancel any time.</p>
+      <div class="ctas">
+        <a class="btn btn-dark btn-lg" routerLink="/auth/signup">Get started <span>→</span></a>
+        <a class="btn btn-ghost btn-lg" href="#pricing" style="background:rgba(255,255,255,0.6)">See pricing</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<app-footer />

@@ -1,0 +1,25 @@
+<div class="nav">
+  <div class="nav-inner">
+    <a routerLink="/" class="logo">
+      <span class="logo-mark">𝒜</span>
+      <span>Azens</span>
+    </a>
+
+    <div class="nav-center">
+      <a (click)="scrollTo('product')">Product</a>
+      <a (click)="scrollTo('testimonials')">Testimonials</a>
+      <a (click)="scrollTo('pricing')">Pricing</a>
+      <a (click)="scrollTo('faq')">FAQ</a>
+    </div>
+
+    <div class="nav-right">
+      @if (!auth.isLoggedIn()) {
+        <a class="btn btn-ghost" routerLink="/auth/login">Sign in</a>
+        <a class="btn btn-primary" routerLink="/auth/signup">Get started <span>→</span></a>
+      } @else {
+        <a class="btn btn-ghost" routerLink="/app/dashboard">Dashboard</a>
+        <button class="btn btn-ghost" (click)="auth.logout()">Log out</button>
+      }
+    </div>
+  </div>
+</div>
