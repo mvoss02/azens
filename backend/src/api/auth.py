@@ -5,6 +5,12 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from models.cv import CV
+from models.feedback import Feedback
+from models.session import Session
+from models.subscription import Subscription
+from models.transcript import Transcript
+from services.s3 import delete_object
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -314,3 +320,76 @@ async def reset_password(
     user.password_reset_expires = None
 
     return {'message': 'Password reset successfully'}
+
+
+@router.delete('/delete-account', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> None:
+    # Find user by token
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail='User not found')
+    
+    # Find sessions to delete
+    result_sessions = await db.execute(
+        select(Session).where(Session.user_id == user_id)
+    )
+    
+    sessions = result_sessions.scalars().all()
+    
+    if sessions:
+        # Find and delete user-related feedback
+        result_feedback = await db.execute(
+            select(Feedback).where(Feedback.session_id.in_([s.id for s in sessions]))
+        )
+        
+        feedbacks = result_feedback.scalars().all()
+        
+        for feedback in feedbacks:
+            await db.delete(feedback)
+        
+        # Find and delete all transcripts
+        result_transcripts = await db.execute(
+            select(Transcript).where(Transcript.session_id.in_([s.id for s in sessions]))
+        )
+        
+        transcripts = result_transcripts.scalars().all()
+        
+        for transcript in transcripts:
+            await db.delete(transcript)
+        
+        # Delete sessions
+        for session in sessions:
+            await db.delete(session)
+    
+    # Find CV(s) and delete
+    result_cvs = await db.execute(
+        select(CV).where(CV.user_id == user_id)
+    )
+    
+    cvs = result_cvs.scalars().all()
+    
+    for cv in cvs:
+        # Delete in Blob
+        delete_object(cv.s3_key)
+        
+        # Delete in DB
+        await db.delete(cv)
+    
+    # Find subscription and delete
+    result_sub = await db.execute(
+        select(Subscription).where(Subscription.user_id == user_id)
+    )
+    
+    sub = result_sub.scalar_one_or_none()
+    
+    if sub:
+        await db.delete(sub)
+        await db.flush()
+    
+    # Delete user
+    await db.delete(user)
+    await db.flush()
