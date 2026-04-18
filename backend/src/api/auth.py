@@ -113,12 +113,10 @@ async def google():
     return {'redirect_url': f'https://accounts.google.com/o/oauth2/v2/auth?{params}'}
 
 
-@router.get(
-    '/google/callback', response_model=TokenResponse, status_code=status.HTTP_200_OK
-)
+@router.get('/google/callback')
 async def google_callback(
     code: str, db: AsyncSession = Depends(get_db)
-) -> TokenResponse:
+):
     # 1. Exchange code for access token
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -167,9 +165,12 @@ async def google_callback(
         # Existing user, link Google ID
         user.google_id = google_profile['id']
 
-    # 3. Create token and return
+    # 3. Create token and redirect to frontend
+    from fastapi.responses import RedirectResponse
     token = create_access_token(str(user.id))
-    return TokenResponse(access_token=token)
+    return RedirectResponse(
+        url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
+    )
 
 
 @router.get('/linkedin', status_code=status.HTTP_200_OK)
@@ -186,12 +187,10 @@ async def linkedin():
     return {'redirect_url': f'https://www.linkedin.com/oauth/v2/authorization?{params}'}
 
 
-@router.get(
-    '/linkedin/callback', response_model=TokenResponse, status_code=status.HTTP_200_OK
-)
+@router.get('/linkedin/callback')
 async def linkedin_callback(
     code: str, db: AsyncSession = Depends(get_db)
-) -> TokenResponse:
+):
     # 1. Exchange code for access token
     async with httpx.AsyncClient() as client:
         token_resp = await client.post(
@@ -243,9 +242,12 @@ async def linkedin_callback(
         # Existing user, link Linkedin ID
         user.linkedin_id = linkedin_profile['sub']
 
-    # 3. Create token and return
+    # 3. Create token and redirect to frontend
+    from fastapi.responses import RedirectResponse
     token = create_access_token(str(user.id))
-    return TokenResponse(access_token=token)
+    return RedirectResponse(
+        url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
+    )
 
 
 @router.get('/verify', status_code=status.HTTP_200_OK)
