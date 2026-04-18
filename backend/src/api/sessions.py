@@ -25,6 +25,7 @@ from schemas.session import SessionRequest, SessionResponse, StartSessionRespons
 from services.feedback_generator import generate_and_save_feedback
 from services.daily_service import create_room, create_meeting_token
 from core.config import settings as settings_sessions
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -57,8 +58,23 @@ async def start_session(
             if target_cv.parsed_text:
                 parsed_cv_text = target_cv.parsed_text
             else:
-                parsed_cv_text = asyncio.to_thread(parse_cv_from_s3(s3_key=target_cv.s3_key))
+                parsed_cv_text = await asyncio.to_thread(parse_cv_from_s3, s3_key=target_cv.s3_key)
                 target_cv.parsed_text = parsed_cv_text
+    
+    # Check count of sessions taken (this month)      
+    first_of_month = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    count = await db.execute(
+        select(func.count()).select_from(Session).where(
+            Session.user_id == user_id,
+            Session.created_at >= first_of_month,
+            Session.status.in_([SessionStatus.COMPLETED, SessionStatus.ACTIVE]),
+        )
+    )
+    session_count = count.scalar()
+    
+    if session_count >= 15:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail='Too many sessions')
 
     # Create new session
     new_sess = Session(

@@ -28,6 +28,7 @@ def _build_converter() -> DocumentConverter:
         },
     )
 
+# Module level — built once:
 _converter = _build_converter()
 
 
