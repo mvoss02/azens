@@ -58,7 +58,19 @@ export class AuthService {
   handleOAuthCallback(token: string): void {
     this.saveToken(token);
     this.fetchCurrentUser().subscribe({
-      next: () => this.router.navigate(['/app/dashboard']),
+      next: () => {
+        // Check if user has an active subscription
+        this.http.get<any>(`${environment.apiUrl}/billing/subscription`).subscribe({
+          next: (sub) => {
+            if (sub && sub.is_active) {
+              this.router.navigate(['/app/dashboard']);
+            } else {
+              this.router.navigate(['/app/billing']);
+            }
+          },
+          error: () => this.router.navigate(['/app/billing']),
+        });
+      },
       error: () => this.clearSession(),
     });
   }
