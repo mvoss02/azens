@@ -134,5 +134,5 @@ async def delete_cv(
     # expired and attribute access would re-query (or fail).
     s3_key = deleted_cv.s3_key
     await db.delete(deleted_cv)
-
+    await db.commit()
     background_tasks.add_task(delete_object_best_effort, s3_key)

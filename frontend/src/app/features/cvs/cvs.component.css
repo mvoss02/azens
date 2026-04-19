@@ -175,3 +175,107 @@
 .btn-delete:hover {
   background: rgba(192, 57, 43, 0.06);
 }
+
+/* ── Delete-CV confirm modal ──────────────────────── */
+
+/* Duplicated from settings.component.css (account-delete modal). Scoping
+   the button rules under `.modal-card` keeps them from clashing with the
+   global `.btn-ghost` used by the "Set active" button in the CV list.
+   Promote to a shared _modal.css when a third modal appears. */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 19, 17, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: var(--space-4);
+}
+
+.modal-card {
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--shadow-lift);
+  border: 1px solid var(--color-border);
+}
+
+.modal-card h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+}
+
+.modal-card p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.modal-emphasis {
+  color: var(--color-error);
+  font-weight: 500;
+  margin-bottom: var(--space-6) !important;
+}
+
+.modal-error {
+  background: rgba(192, 57, 43, 0.08);
+  border: 1px solid rgba(192, 57, 43, 0.2);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--color-error) !important;
+  margin: 0 0 var(--space-4) !important;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.modal-card .btn-ghost,
+.modal-card .btn-danger-confirm {
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.modal-card .btn-ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.modal-card .btn-ghost:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.modal-card .btn-ghost:disabled,
+.modal-card .btn-danger-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-card .btn-danger-confirm {
+  background: var(--color-error);
+  color: var(--color-bg-alt);
+  border: none;
+}
+
+.modal-card .btn-danger-confirm:hover:not(:disabled) {
+  filter: brightness(1.1);
+}

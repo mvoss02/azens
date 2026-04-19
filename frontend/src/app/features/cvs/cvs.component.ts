@@ -31,6 +31,13 @@ export class CvsComponent implements OnInit {
   uploadError = signal('');
   isLoading = signal(true);
 
+  // Drives the custom delete-confirm modal. Storing the full CV (not just
+  // its id) lets the template read `cv.filename` directly via `@if (... ; as cv)`,
+  // and `null` doubles as the "modal closed" sentinel — one signal, not two.
+  cvPendingDelete = signal<CvItem | null>(null);
+  isDeleting = signal(false);
+  deleteError = signal('');
+
   // Subscription status drives the UI, never a redirect. The user should
   // always be able to see and delete the CVs they already uploaded even
   // if their subscription has lapsed — those are their files.
@@ -147,12 +154,33 @@ export class CvsComponent implements OnInit {
     });
   }
 
-  deleteCv(cv: CvItem): void {
-    if (!confirm(`Delete "${cv.filename}"?`)) return;
+  askDeleteCv(cv: CvItem): void {
+    this.deleteError.set('');
+    this.cvPendingDelete.set(cv);
+  }
+
+  cancelDeleteCv(): void {
+    // Don't let the user dismiss mid-request — the in-flight DELETE would
+    // still land and they'd see a row disappear with no confirmation context.
+    if (this.isDeleting()) return;
+    this.cvPendingDelete.set(null);
+  }
+
+  confirmDeleteCv(): void {
+    const cv = this.cvPendingDelete();
+    if (!cv || this.isDeleting()) return;
+    this.isDeleting.set(true);
+
     this.http.delete(`${this.api}/${cv.id}`).subscribe({
-      next: () => this.loadCvs(),
+      next: () => {
+        this.cvPendingDelete.set(null);
+        this.isDeleting.set(false);
+        this.loadCvs();
+      },
       error: (err) => {
-        this.uploadError.set(err.error?.detail ?? 'Failed to delete CV.');
+        // Keep the modal open so the user can read the error and retry.
+        this.isDeleting.set(false);
+        this.deleteError.set(err.error?.detail ?? 'Failed to delete CV.');
       },
     });
   }

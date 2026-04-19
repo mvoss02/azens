@@ -79,7 +79,7 @@
               @if (!cv.is_active) {
                 <button class="btn btn-ghost btn-sm" (click)="activateCv(cv)">Set active</button>
               }
-              <button class="btn-delete" (click)="deleteCv(cv)">Delete</button>
+              <button class="btn-delete" (click)="askDeleteCv(cv)">Delete</button>
             </div>
           </div>
         }
@@ -87,3 +87,33 @@
     }
   </div>
 </div>
+
+<!-- Delete-CV confirmation modal. Mirrors the account-delete modal in
+     settings.component.html — if a third confirm modal appears, promote
+     these styles and this template to a shared component. -->
+@if (cvPendingDelete(); as cv) {
+  <div class="modal-backdrop" (click)="cancelDeleteCv()">
+    <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="delete-cv-title">
+      <h2 id="delete-cv-title">Delete this CV?</h2>
+      <p>
+        You're about to delete <strong>{{ cv.filename }}</strong>. Any sessions
+        that already used this CV will keep their transcripts and feedback,
+        but you won't be able to start new sessions from it.
+      </p>
+      <p class="modal-emphasis">This cannot be undone.</p>
+
+      @if (deleteError()) {
+        <p class="modal-error">{{ deleteError() }}</p>
+      }
+
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" (click)="cancelDeleteCv()" [disabled]="isDeleting()">
+          Cancel
+        </button>
+        <button type="button" class="btn-danger-confirm" (click)="confirmDeleteCv()" [disabled]="isDeleting()">
+          {{ isDeleting() ? 'Deleting…' : 'Yes, delete CV' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
