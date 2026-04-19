@@ -4,35 +4,59 @@
     <p class="page-sub">Upload your CV to personalise interview sessions. Max 3 CVs.</p>
   </div>
 
-  <!-- Upload section -->
-  <div class="section">
-    <h2 class="section-title">Upload</h2>
-    <div class="upload-area" (click)="triggerUpload()" [class.uploading]="isUploading()">
-      <input #fileInput type="file" accept=".pdf" (change)="onFileSelected($event)" hidden />
+  <!-- Subscription gate banner. Shown only when the user has no active sub.
+       We don't redirect away — users always need to see + manage their
+       existing files, even with a lapsed subscription. -->
+  @if (!hasActiveSub()) {
+    <div class="sub-gate">
+      <div class="sub-gate-body">
+        <strong>No active subscription</strong>
+        <p>
+          You need an active plan to start interview sessions using these CVs.
+          You can still view and delete the files you've already uploaded.
+        </p>
+      </div>
+      <a routerLink="/app/billing" class="sub-gate-cta">Go to billing</a>
+    </div>
+  }
 
-      @if (isUploading()) {
-        <span class="upload-status">Uploading...</span>
-      } @else {
-        <div class="upload-icon">↑</div>
-        <p><strong>Click to upload</strong> your CV</p>
-        <span class="upload-hint">PDF only · max 5 MB</span>
+  <!-- Upload section. Only rendered when subscribed — no point offering
+       upload if sessions aren't available to use it. -->
+  @if (hasActiveSub()) {
+    <div class="section">
+      <h2 class="section-title">Upload</h2>
+      <div class="upload-area" (click)="triggerUpload()" [class.uploading]="isUploading()">
+        <input #fileInput type="file" accept=".pdf" (change)="onFileSelected($event)" hidden />
+
+        @if (isUploading()) {
+          <span class="upload-status">Uploading...</span>
+        } @else {
+          <div class="upload-icon">↑</div>
+          <p><strong>Click to upload</strong> your CV</p>
+          <span class="upload-hint">PDF only · max 5 MB</span>
+        }
+      </div>
+
+      @if (uploadError()) {
+        <div class="error-msg">{{ uploadError() }}</div>
       }
     </div>
+  }
 
-    @if (uploadError()) {
-      <div class="error-msg">{{ uploadError() }}</div>
-    }
-  </div>
-
-  <!-- CV list section -->
+  <!-- CV list section — always visible. Users can manage (delete, activate)
+       their existing CVs regardless of subscription state. -->
   <div class="section">
     <h2 class="section-title">Your CVs</h2>
+
+    @if (uploadError() && !hasActiveSub()) {
+      <div class="error-msg">{{ uploadError() }}</div>
+    }
 
     @if (isLoading()) {
       <p class="empty">Loading...</p>
     } @else if (cvs().length === 0) {
       <div class="empty-state">
-        <p>No CVs uploaded yet. Upload your first one above.</p>
+        <p>No CVs uploaded yet. {{ hasActiveSub() ? 'Upload your first one above.' : 'Subscribe to upload one.' }}</p>
       </div>
     } @else {
       <div class="cv-list">

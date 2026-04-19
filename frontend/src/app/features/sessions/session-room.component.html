@@ -1,0 +1,187 @@
+<div class="room-shell">
+  @switch (view()) {
+    @case ('loading') {
+      <div class="centered-state">
+        <p class="status-line">Loading session…</p>
+      </div>
+    }
+
+    @case ('lobby') {
+      <div class="lobby">
+        <div class="lobby-summary">
+          <p class="eyebrow">You're about to start</p>
+          <h1 class="lobby-title">{{ sessionTypeLabel() }}</h1>
+
+          <div class="summary-chips">
+            <span class="chip">{{ session()?.duration_minutes }} min</span>
+            <span class="chip">{{ languageLabel() }}</span>
+            <span class="chip">{{ seniorityLabel() }}</span>
+            @if (cvFilename()) {
+              <span class="chip">{{ cvFilename() }}</span>
+            }
+          </div>
+
+          <p class="final-check">
+            These are the settings you picked on the previous screen. Once you join,
+            they're locked — the session counts toward your monthly quota even if
+            you leave early.
+          </p>
+        </div>
+
+        <div class="lobby-devices">
+          <div class="device-row">
+            <div class="device-label">Microphone</div>
+            @switch (micPermission()) {
+              @case ('unknown') {
+                <span class="device-state">Waiting for permission…</span>
+              }
+              @case ('granted') {
+                <div class="mic-meter" aria-hidden="true">
+                  <div class="mic-meter-fill" [style.width.%]="micLevel() * 100"></div>
+                </div>
+                <span class="device-state ok">Ready</span>
+              }
+              @case ('denied') {
+                <span class="device-state error">
+                  Mic access is required. Enable it in your browser and
+                  <button type="button" class="link-btn" (click)="requestMicPermission()">retry</button>.
+                </span>
+              }
+            }
+          </div>
+
+          <div class="device-row">
+            <div class="device-label">Camera <span class="device-sub">(optional)</span></div>
+            @if (camPermission() === 'denied') {
+              <span class="device-state error">
+                Denied — continuing without camera.
+              </span>
+            } @else {
+              <button type="button" class="toggle-btn" (click)="requestCamPermission()">
+                {{ isCamOn() ? 'Turn camera off' : 'Turn camera on' }}
+              </button>
+            }
+          </div>
+
+          @if (isCamOn()) {
+            <div class="self-preview">
+              <video #selfVideo autoplay muted playsinline></video>
+            </div>
+          }
+        </div>
+
+        <div class="lobby-actions">
+          <button
+            type="button"
+            class="join-btn"
+            [disabled]="micPermission() !== 'granted'"
+            (click)="joinSession()"
+          >
+            Join interview
+          </button>
+        </div>
+      </div>
+    }
+
+    @case ('joining') {
+      <div class="centered-state dark">
+        <app-orb [size]="180" />
+        <p class="status-line mono">CONNECTING…</p>
+      </div>
+    }
+
+    @case ('connected') {
+      <div class="room">
+        <header class="room-top">
+          <div class="top-chips">
+            <span class="chip live"><span class="live-dot"></span>LIVE · {{ sessionTypeLabel() }}</span>
+            <span class="chip">{{ languageLabel() }}</span>
+            <span class="chip">{{ seniorityLabel() }}</span>
+            @if (cvFilename()) {
+              <span class="chip">{{ cvFilename() }}</span>
+            }
+          </div>
+          <div class="timer mono">{{ timerLabel() }}</div>
+        </header>
+
+        <div class="room-main">
+          <app-orb [size]="240" />
+          <p class="bot-caption mono">ALEX · INTERVIEWING</p>
+
+          @if (isCamOn()) {
+            <div class="self-tile">
+              <video #selfVideo autoplay muted playsinline></video>
+            </div>
+          }
+        </div>
+
+        <footer class="room-controls">
+          <button
+            type="button"
+            class="ctrl-btn"
+            [class.off]="!isMicOn()"
+            (click)="toggleMic()"
+            [title]="isMicOn() ? 'Mute mic' : 'Unmute mic'"
+          >
+            {{ isMicOn() ? '● MIC ON' : '○ MIC OFF' }}
+          </button>
+
+          <button
+            type="button"
+            class="ctrl-btn"
+            [class.off]="!isCamOn()"
+            (click)="toggleCam()"
+            [title]="isCamOn() ? 'Turn camera off' : 'Turn camera on'"
+          >
+            {{ isCamOn() ? '● CAM ON' : '○ CAM OFF' }}
+          </button>
+
+          <button
+            type="button"
+            class="ctrl-btn leave"
+            (click)="openLeaveConfirm()"
+            title="Leave session"
+          >
+            Leave
+          </button>
+        </footer>
+      </div>
+    }
+
+    @case ('ending') {
+      <div class="centered-state dark">
+        <p class="status-line mono">WRAPPING UP…</p>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="centered-state">
+        <p class="status-line error">{{ errorMessage() }}</p>
+        <button type="button" class="join-btn" (click)="router.navigate(['/app/sessions'])">
+          Back to sessions
+        </button>
+      </div>
+    }
+  }
+
+  <!-- Leave confirm overlay -->
+  @if (leaveConfirmOpen()) {
+    <div class="modal-backdrop" (click)="cancelLeave()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <h2>Leave this session?</h2>
+        <p>
+          The session will end now and count toward your monthly quota.
+          Feedback will still be generated from what you've said so far.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="cancelLeave()">
+            Stay in session
+          </button>
+          <button type="button" class="btn-danger" (click)="confirmLeave()">
+            Leave now
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

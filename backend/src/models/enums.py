@@ -32,9 +32,14 @@ class Difficulty(enum.Enum):
 
 
 class SubscriptionPlan(enum.Enum):
-    ANALYST = 'starter'
-    ASSOCIATE = 'pro'
-    MANAGING_DIRECTOR = 'elite'
+    # Values match the plan slugs used across the public API (CheckoutRequest
+    # and the subscription response). SQLAlchemy's Enum column stores the
+    # NAMES (ANALYST / ASSOCIATE / MANAGING_DIRECTOR) in Postgres, so changing
+    # the values here does not require a DB migration — only the wire format
+    # changes (Pydantic serializes enums to their value).
+    ANALYST = 'analyst'
+    ASSOCIATE = 'associate'
+    MANAGING_DIRECTOR = 'managing_director'
 
 
 class SessionType(enum.Enum):

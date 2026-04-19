@@ -34,6 +34,11 @@ export const routes: Routes = [
           import('./features/sessions/session-setup.component').then(m => m.SessionSetupComponent),
       },
       {
+        path: 'sessions/:id/room',
+        loadComponent: () =>
+          import('./features/sessions/session-room.component').then(m => m.SessionRoomComponent),
+      },
+      {
         path: 'cvs',
         loadComponent: () =>
           import('./features/cvs/cvs.component').then(m => m.CvsComponent),

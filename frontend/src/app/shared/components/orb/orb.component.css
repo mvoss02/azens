@@ -1,0 +1,26 @@
+.orb {
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 35%,
+    #f2a65a,
+    #e87a3a 45%,
+    #8b3e1a 100%
+  );
+  box-shadow:
+    0 0 60px -10px rgba(242, 166, 90, 0.6),
+    inset -20px -20px 40px rgba(0, 0, 0, 0.25);
+  animation: orb-pulse 3s ease-in-out infinite;
+}
+
+/* Keyframe names aren't scoped by Angular's view encapsulation, so we use
+   a specific name (orb-pulse, not orb) to avoid colliding with anything
+   else that might define a generic "orb" animation. */
+@keyframes orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}

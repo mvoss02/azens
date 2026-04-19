@@ -132,9 +132,19 @@ export class SessionSetupComponent implements OnInit {
 
     this.http.post<any>(`${environment.apiUrl}/session/start`, data).subscribe({
       next: (session) => {
-        // TODO: Navigate to the session room with Daily.co credentials
-        // For now, navigate to sessions list
-        this.router.navigate(['/app/sessions']);
+        // Pass credentials through Router state so the room can join
+        // immediately without a second round-trip. On page refresh the state
+        // is lost and the room falls back to GET /session/:id, which returns
+        // a freshly-minted Daily token for the owner of an ACTIVE session.
+        this.router.navigate(
+          ['/app/sessions', session.id, 'room'],
+          {
+            state: {
+              daily_room_url: session.daily_room_url,
+              daily_token: session.daily_token,
+            },
+          },
+        );
       },
       error: (err) => {
         this.errorMessage.set(err.error?.detail ?? 'Failed to start session. Please try again.');

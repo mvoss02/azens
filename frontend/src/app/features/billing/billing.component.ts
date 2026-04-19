@@ -10,13 +10,17 @@ interface Subscription {
   current_period_end: string | null;
 }
 
+type PlanSlug = 'analyst' | 'associate' | 'managing_director';
+type CycleSlug = 'monthly' | 'halfyearly';
+
 interface Plan {
   name: string;
   tier: string;
+  // Slug sent to the backend. The backend resolves (slug, cycle) to the real
+  // Stripe price ID — keep Stripe identifiers server-side where they belong.
+  slug: PlanSlug;
   priceMonthly: string;
   priceHalfYearly: string;
-  priceIdMonthly: string;
-  priceIdHalfYearly: string;
   features: string[];
   featured: boolean;
 }
@@ -38,30 +42,27 @@ export class BillingComponent implements OnInit {
     {
       name: 'Analyst',
       tier: 'ANALYST · ENTRY',
+      slug: 'analyst',
       priceMonthly: '€15',
       priceHalfYearly: '€72',
-      priceIdMonthly: 'price_analyst_monthly',
-      priceIdHalfYearly: 'price_analyst_halfyearly',
       features: ['3 CV screens / month', '3 knowledge drills / month', 'Full feedback reports'],
       featured: false,
     },
     {
       name: 'Associate',
       tier: 'ASSOCIATE · FULL ACCESS',
+      slug: 'associate',
       priceMonthly: '€35',
       priceHalfYearly: '€168',
-      priceIdMonthly: 'price_associate_monthly',
-      priceIdHalfYearly: 'price_associate_halfyearly',
       features: ['15 sessions / month', 'Full transcript history', 'Limited case studies (Q2)', 'Priority bot response'],
       featured: true,
     },
     {
       name: 'Managing Director',
       tier: 'MD · EVERYTHING',
+      slug: 'managing_director',
       priceMonthly: '€65',
       priceHalfYearly: '€312',
-      priceIdMonthly: 'price_md_monthly',
-      priceIdHalfYearly: 'price_md_halfyearly',
       features: ['Unlimited sessions', 'All case studies (Q2)', 'Priority processing', 'Full transcript history'],
       featured: false,
     },
@@ -91,12 +92,12 @@ export class BillingComponent implements OnInit {
         this.subscription.set(sub);
         this.isLoading.set(false);
 
-        // Auto-trigger checkout if plan param is present and user has no subscription
+        // Auto-trigger checkout if plan param is present and user has no subscription.
+        // Match directly against plan.slug — no whitespace / dash gymnastics.
         if (!sub || !sub.is_active) {
-          const planSlug = this.route.snapshot.queryParamMap.get('plan');
+          const planSlug = this.route.snapshot.queryParamMap.get('plan') as PlanSlug | null;
           if (planSlug) {
-            const match = this.plans.find(p => p.name.toLowerCase().replace(' ', '-') === planSlug ||
-              p.name.toLowerCase() === planSlug);
+            const match = this.plans.find(p => p.slug === planSlug);
             if (match) {
               setTimeout(() => this.subscribe(match), 500);
             }
@@ -142,10 +143,15 @@ export class BillingComponent implements OnInit {
   }
 
   subscribe(plan: Plan): void {
-    const priceId = this.halfYearly() ? plan.priceIdHalfYearly : plan.priceIdMonthly;
+    const cycle: CycleSlug = this.halfYearly() ? 'halfyearly' : 'monthly';
     this.checkoutLoading.set(plan.name);
 
-    this.http.post<{ checkout_url: string }>(`${this.api}/checkout`, { price_id: priceId }).subscribe({
+    this.http
+      .post<{ checkout_url: string }>(`${this.api}/checkout`, {
+        plan: plan.slug,
+        cycle,
+      })
+      .subscribe({
       next: (res) => { window.location.href = res.checkout_url; },
       error: () => this.checkoutLoading.set(''),
     });
@@ -160,5 +166,22 @@ export class BillingComponent implements OnInit {
   formatDate(iso: string | null): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  // Backend sends the enum value as a snake_case slug (e.g. 'managing_director').
+  // Render it as a human-friendly title — works for any future plans too as
+  // long as the enum values stay slug-shaped.
+  planLabel(plan: string | null): string {
+    if (!plan) return '—';
+    return plan
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+
+  cycleLabel(cycle: string | null): string {
+    if (cycle === 'monthly') return 'Monthly';
+    if (cycle === 'halfyearly') return 'Every 6 months';
+    return cycle ?? '—';
   }
 }

@@ -56,13 +56,13 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str
 
     stripe_price_analyst_monthly: str
-    stripe_price_analyst_yearly: str
+    stripe_price_analyst_halfyearly: str
 
     stripe_price_associate_monthly: str
-    stripe_price_associate_yearly: str
+    stripe_price_associate_halfyearly: str
 
     stripe_price_managing_director_monthly: str
-    stripe_price_managing_director_yearly: str
+    stripe_price_managing_director_halfyearly: str
 
     # OPENAI
     openai_api_key: str

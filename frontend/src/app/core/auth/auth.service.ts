@@ -27,12 +27,24 @@ export class AuthService {
       this._bootstrapped$.next(true);
       return;
     }
-    this.fetchCurrentUser().subscribe({
-      next: () => this._bootstrapped$.next(true),
-      error: () => {
-        this.clearSession();
-        this._bootstrapped$.next(true);
-      },
+    // Defer the HTTP call by one microtask so AuthService's construction
+    // completes first. Without this defer, the authInterceptor's
+    // `inject(AuthService)` fires while we're still mid-constructor and
+    // Angular throws NG0200 (circular dependency). The observable errors
+    // synchronously with no network request, the error handler clears our
+    // perfectly valid token, and the authGuard redirects to /login — the
+    // exact bug that manifested as "I was logged out after returning from
+    // Stripe." queueMicrotask pushes the subscribe to after this function
+    // returns, by which time AuthService is fully constructed and the
+    // interceptor can inject it normally.
+    queueMicrotask(() => {
+      this.fetchCurrentUser().subscribe({
+        next: () => this._bootstrapped$.next(true),
+        error: () => {
+          this.clearSession();
+          this._bootstrapped$.next(true);
+        },
+      });
     });
   }
 

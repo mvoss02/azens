@@ -4,6 +4,45 @@
 .page-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: -0.02em; }
 .page-sub { margin-top: 4px; font-size: 14px; color: var(--color-text-faint); }
 
+/* ── Subscription-required banner ─────────────────── */
+
+/* Warm ochre, consistent with the verify-email banner in shell, so
+   "something is blocking you" states have a single visual language. */
+.sub-gate {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-ochre) 20%, var(--color-bg-alt));
+  border: 1px solid color-mix(in srgb, var(--color-ochre) 45%, transparent);
+  flex-wrap: wrap;
+}
+
+.sub-gate-body { flex: 1; min-width: 220px; }
+.sub-gate-body strong { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.sub-gate-body p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.sub-gate-cta {
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ink);
+  color: var(--color-bg);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: var(--transition);
+}
+.sub-gate-cta:hover {
+  background: var(--color-text-muted);
+  transform: translateY(-1px);
+}
+
 .section { margin-bottom: 28px; }
 .section-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 

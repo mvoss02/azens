@@ -21,14 +21,57 @@ logger = logging.getLogger(__name__)
 stripe.api_key = settings_billing.stripe_api_key
 router = APIRouter()
 
-PRICE_TO_PLAN = {
-    settings_billing.stripe_price_analyst_monthly: SubscriptionPlan.ANALYST,
-    settings_billing.stripe_price_analyst_yearly: SubscriptionPlan.ANALYST,
-    settings_billing.stripe_price_associate_monthly: SubscriptionPlan.ASSOCIATE,
-    settings_billing.stripe_price_associate_yearly: SubscriptionPlan.ASSOCIATE,
-    settings_billing.stripe_price_managing_director_monthly: SubscriptionPlan.MANAGING_DIRECTOR,
-    settings_billing.stripe_price_managing_director_yearly: SubscriptionPlan.MANAGING_DIRECTOR,
+# Single source of truth for (plan, cycle) -> Stripe price ID.
+# The frontend sends plan + cycle slugs; we resolve them here. Never trust
+# a price_id string coming from the client — a leaked valid price from a
+# different product / tier would otherwise let a user checkout at the
+# wrong plan level.
+PLAN_CYCLE_TO_PRICE_ID: dict[tuple[str, str], str] = {
+    ('analyst', 'monthly'): settings_billing.stripe_price_analyst_monthly,
+    ('analyst', 'halfyearly'): settings_billing.stripe_price_analyst_halfyearly,
+    ('associate', 'monthly'): settings_billing.stripe_price_associate_monthly,
+    ('associate', 'halfyearly'): settings_billing.stripe_price_associate_halfyearly,
+    ('managing_director', 'monthly'): settings_billing.stripe_price_managing_director_monthly,
+    ('managing_director', 'halfyearly'): settings_billing.stripe_price_managing_director_halfyearly,
 }
+
+# Reverse lookups used by the webhook. A Stripe event carries a real price
+# id; we map back to both our plan enum and our cycle slug. Using the price
+# id as the lookup (rather than Stripe's raw `recurring.interval`) is
+# important because a 6-monthly price is modelled as `interval=month,
+# interval_count=6` — the first field alone doesn't distinguish monthly
+# from half-yearly.
+PRICE_TO_PLAN: dict[str, SubscriptionPlan] = {
+    price_id: SubscriptionPlan[plan.upper()]
+    for (plan, _cycle), price_id in PLAN_CYCLE_TO_PRICE_ID.items()
+}
+PRICE_TO_CYCLE: dict[str, str] = {
+    price_id: cycle
+    for (_plan, cycle), price_id in PLAN_CYCLE_TO_PRICE_ID.items()
+}
+
+
+def _period_end_ts(stripe_sub) -> int | None:
+    """Read `current_period_end` tolerating both Stripe API shapes.
+
+    - Older API versions: the field lives on the Subscription itself.
+    - Newer versions (~2024+, including the 2026-03-25 "dahlia" release we
+      currently see): it moved to each SubscriptionItem.
+
+    Try item-level first, fall back to subscription-level. Bracket access
+    instead of `.get()` because Stripe's StripeObject overrides __getattr__
+    to do key lookups — `.get()` on it raises `AttributeError: get`.
+    Returns None only if both locations are missing — caller should treat
+    that as an unknown payload shape and log + skip rather than crash.
+    """
+    try:
+        return stripe_sub['items']['data'][0]['current_period_end']
+    except (KeyError, IndexError):
+        pass
+    try:
+        return stripe_sub['current_period_end']
+    except KeyError:
+        return None
 
 
 @router.post('/checkout', response_model=None, status_code=status.HTTP_201_CREATED)
@@ -46,12 +89,26 @@ async def checkout(
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail='User not found')
 
+    # Resolve the (plan, cycle) slug pair to a real Stripe price ID. Pydantic's
+    # Literal types on CheckoutRequest already guarantee the values are in our
+    # known set, so a missing entry here would be a misconfiguration bug, not
+    # a bad request — fail loudly.
+    price_id = PLAN_CYCLE_TO_PRICE_ID.get((body.plan, body.cycle))
+    if not price_id:
+        logger.error(
+            'No Stripe price configured for plan=%s cycle=%s', body.plan, body.cycle
+        )
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='Plan not available — please contact support',
+        )
+
     session = stripe.checkout.Session.create(
         mode='subscription',
         customer_email=user.email,
-        line_items=[{'price': body.price_id, 'quantity': 1}],
-        success_url=f'{settings_billing.frontend_url}/billing?success=true',
-        cancel_url=f'{settings_billing.frontend_url}/billing?cancelled=true',
+        line_items=[{'price': price_id, 'quantity': 1}],
+        success_url=f'{settings_billing.frontend_url}/app/billing?success=true',
+        cancel_url=f'{settings_billing.frontend_url}/app/billing?cancelled=true',
         metadata={'user_id': str(user_id)},  # so webhook knows which user paid
     )
 
@@ -92,15 +149,42 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
     # must not roll the Subscription row back).
     event_created = datetime.fromtimestamp(event['created'], tz=UTC)
 
+    try:
+        return await _dispatch_stripe_event(event, event_created, db)
+    except Exception:
+        # Any unexpected payload shape or downstream error lands here. We
+        # log the full traceback (so we can actually fix it) and re-raise,
+        # which becomes a 500 — Stripe will retry the event later. The
+        # ProcessedStripeEvent row we inserted above gets rolled back with
+        # the txn, so the retry sees a fresh event and dedupe doesn't bite.
+        logger.exception(
+            'Stripe webhook failed for event id=%s type=%s',
+            event['id'], event['type'],
+        )
+        raise
+
+
+async def _dispatch_stripe_event(event: dict, event_created: datetime, db: AsyncSession) -> dict:
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         user_id = UUID(session['metadata']['user_id'])
 
-        # Get price ids and payment interval
+        # Resolve plan + cycle from the chosen price id. Using the PRICE_TO_*
+        # maps (rather than Stripe's raw `recurring.interval`) correctly
+        # distinguishes "every month" from "every 6 months" — both have
+        # interval=month but different interval_count, which the raw field
+        # alone hides.
         stripe_sub = stripe.Subscription.retrieve(session['subscription'])
         price_id = stripe_sub['items']['data'][0]['price']['id']
-        interval = stripe_sub['items']['data'][0]['price']['recurring']['interval']
-        period_end = stripe_sub['items']['data'][0]['current_period_end']
+        period_end = _period_end_ts(stripe_sub)
+        plan = PRICE_TO_PLAN.get(price_id)
+        cycle = PRICE_TO_CYCLE.get(price_id)
+        if plan is None or cycle is None or period_end is None:
+            logger.error(
+                'Unusable Stripe payload for session %s — price_id=%s plan=%s cycle=%s period_end=%s',
+                session['id'], price_id, plan, cycle, period_end,
+            )
+            return {'received': True}
 
         # Create/update subscription record in your DB
         result = await db.execute(
@@ -112,29 +196,35 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             # Create subscription
             new_sub = Subscription(
                 user_id=user_id,
-                plan=PRICE_TO_PLAN[price_id],
+                plan=plan,
                 is_active=True,
                 stripe_customer_id=session['customer'],
                 stripe_subscription_id=session['subscription'],
-                billing_cycle=interval,
+                billing_cycle=cycle,
                 current_period_end=datetime.fromtimestamp(period_end, tz=UTC),
                 last_stripe_event_at=event_created,
             )
             db.add(new_sub)
             await db.flush()  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
         else:
-            # Update exisitng subscription
+            # Update existing subscription
             sub.is_active = True
-            sub.plan = PRICE_TO_PLAN[price_id]
+            sub.plan = plan
             sub.stripe_customer_id = session['customer']
             sub.stripe_subscription_id = session['subscription']
-            sub.billing_cycle = interval
+            sub.billing_cycle = cycle
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
             sub.last_stripe_event_at = event_created
 
     elif event['type'] == 'customer.subscription.updated':
         stripe_sub = event['data']['object']
-        period_end = stripe_sub['items']['data'][0]['current_period_end']
+        period_end = _period_end_ts(stripe_sub)
+        if period_end is None:
+            logger.warning(
+                'Stripe update for sub %s has no period_end — skipping',
+                stripe_sub['id'],
+            )
+            return {'received': True}
         result = await db.execute(
             select(Subscription).where(
                 Subscription.stripe_subscription_id == stripe_sub['id']
@@ -158,13 +248,15 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
             )
             return {'received': True}
 
-        if stripe_sub.get('cancel_at_period_end'):
+        if stripe_sub['cancel_at_period_end']:
             # User cancelled — still active until period end
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
         else:
-            # Could be a plan change — update the plan
+            # Could be a plan change — refresh plan + cycle from the new
+            # price id so our local state mirrors what Stripe now bills.
             price_id = stripe_sub['items']['data'][0]['price']['id']
             sub.plan = PRICE_TO_PLAN.get(price_id, sub.plan)
+            sub.billing_cycle = PRICE_TO_CYCLE.get(price_id, sub.billing_cycle)
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
 
         sub.last_stripe_event_at = event_created
@@ -228,6 +320,6 @@ async def portal(
 
     session = stripe.billing_portal.Session.create(
         customer=sub.stripe_customer_id,
-        return_url=f'{settings_billing.frontend_url}/billing',
+        return_url=f'{settings_billing.frontend_url}/app/billing',
     )
     return {'portal_url': session.url}

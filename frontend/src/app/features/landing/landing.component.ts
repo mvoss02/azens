@@ -2,12 +2,13 @@ import { Component, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NavComponent } from '../../shared/components/nav/nav.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
+import { OrbComponent } from '../../shared/components/orb/orb.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, NavComponent, FooterComponent],
+  imports: [RouterLink, NavComponent, FooterComponent, OrbComponent],
   templateUrl: './landing.component.html',
   styleUrl: './landing.component.css',
 })
@@ -98,7 +99,7 @@ export class LandingComponent {
         ],
         featured: false,
         cta: 'Start on Managing Director',
-        slug: 'md',
+        slug: 'managing_director',
       },
     ];
   });

@@ -17,6 +17,11 @@ export class SettingsComponent implements OnInit {
   isSaving = signal(false);
   saveMessage = signal('');
   isDeleting = signal(false);
+  // Drives the custom "are you sure?" modal. We don't want the browser's
+  // native confirm() dialog — it's visually disconnected from the product
+  // and impossible to style.
+  deleteConfirmOpen = signal(false);
+  deleteError = signal('');
 
   readonly seniorityOptions = [
     { value: '', label: 'Not set' },
@@ -83,21 +88,31 @@ export class SettingsComponent implements OnInit {
     });
   }
 
-  deleteAccount(): void {
-    const confirmed = confirm(
-      'Are you sure you want to delete your account? This will permanently remove all your data — CVs, sessions, transcripts, feedback. This cannot be undone.'
-    );
-    if (!confirmed) return;
+  openDeleteConfirm(): void {
+    this.deleteError.set('');
+    this.deleteConfirmOpen.set(true);
+  }
 
+  cancelDelete(): void {
+    this.deleteConfirmOpen.set(false);
+  }
+
+  confirmDelete(): void {
+    if (this.isDeleting()) return;
     this.isDeleting.set(true);
+    this.deleteError.set('');
+
     this.http.delete(`${environment.apiUrl}/auth/delete-account`).subscribe({
       next: () => {
+        this.deleteConfirmOpen.set(false);
         this.auth.logout();
         this.router.navigate(['/']);
       },
       error: () => {
+        // Keep the modal open so the user can read the error and retry.
+        // No fallback alert() — the error renders inline inside the modal.
         this.isDeleting.set(false);
-        alert('Failed to delete account. Please try again.');
+        this.deleteError.set('Failed to delete account. Please try again.');
       },
     });
   }

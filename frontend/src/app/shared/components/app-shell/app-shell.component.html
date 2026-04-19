@@ -1,5 +1,26 @@
 <div class="shell">
-  <aside class="sidebar">
+  <!-- Mobile-only floating hamburger. Not wrapped in a top bar so it
+       doesn't steal vertical space on narrow viewports — it just floats
+       over the top-left corner of the content. The logo is visible inside
+       the drawer itself when opened, which is enough branding for mobile. -->
+  <button
+    type="button"
+    class="mobile-menu-btn"
+    (click)="toggleMobileNav()"
+    [class.is-open]="mobileNavOpen()"
+    [attr.aria-expanded]="mobileNavOpen()"
+    [attr.aria-label]="mobileNavOpen() ? 'Close navigation' : 'Open navigation'">
+    <span class="hamburger-line"></span>
+    <span class="hamburger-line"></span>
+    <span class="hamburger-line"></span>
+  </button>
+
+  <!-- Backdrop only rendered on mobile when drawer is open. Tap dismisses. -->
+  @if (mobileNavOpen()) {
+    <div class="sidebar-backdrop" (click)="closeMobileNav()" aria-hidden="true"></div>
+  }
+
+  <aside class="sidebar" [class.is-open]="mobileNavOpen()">
     <a routerLink="/" class="sidebar-logo">
       <span class="sidebar-logo-mark">𝒜</span>
       <span>Azens</span>

@@ -1,6 +1,6 @@
-import { Component, OnInit, signal, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 
 interface CvItem {
@@ -11,9 +11,14 @@ interface CvItem {
   created_at: string;
 }
 
+interface Subscription {
+  is_active: boolean;
+}
+
 @Component({
   selector: 'app-cvs',
   standalone: true,
+  imports: [RouterLink],
   templateUrl: './cvs.component.html',
   styleUrl: './cvs.component.css',
 })
@@ -21,26 +26,34 @@ export class CvsComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   cvs = signal<CvItem[]>([]);
+  subscription = signal<Subscription | null>(null);
   isUploading = signal(false);
   uploadError = signal('');
   isLoading = signal(true);
 
+  // Subscription status drives the UI, never a redirect. The user should
+  // always be able to see and delete the CVs they already uploaded even
+  // if their subscription has lapsed — those are their files.
+  readonly hasActiveSub = computed(() => this.subscription()?.is_active === true);
+
   private readonly api = `${environment.apiUrl}/cv`;
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    // Check subscription — redirect to billing if not subscribed
-    this.http.get<any>(`${environment.apiUrl}/billing/subscription`).subscribe({
-      next: (sub) => {
-        if (!sub || !sub.is_active) {
-          this.router.navigate(['/app/billing']);
-        }
-      },
-      error: () => this.router.navigate(['/app/billing']),
-    });
-
     this.loadCvs();
+    this.loadSubscription();
+  }
+
+  private loadSubscription(): void {
+    this.http
+      .get<Subscription | null>(`${environment.apiUrl}/billing/subscription`)
+      .subscribe({
+        next: (sub) => this.subscription.set(sub),
+        // Silent on error — worst case we show the "no active sub"
+        // banner; no need to alarm the user for a transient backend blip.
+        error: () => {},
+      });
   }
 
   triggerUpload(): void {

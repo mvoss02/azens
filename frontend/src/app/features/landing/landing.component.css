@@ -158,6 +158,9 @@
   color: rgba(232, 225, 206, 0.8);
 }
 
+/* .orb visual + pulse animation moved into shared OrbComponent.
+   Kept the wrapper here because the padding + z-index are
+   landing-card-composition concerns, not orb concerns. */
 .pc-orb {
   display: flex;
   justify-content: center;
@@ -165,17 +168,6 @@
   position: relative;
   z-index: 1;
 }
-
-.orb {
-  width: 130px;
-  height: 130px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #F2A65A, #E87A3A 45%, #8B3E1A 100%);
-  box-shadow: 0 0 60px -10px rgba(242, 166, 90, 0.6), inset -20px -20px 40px rgba(0, 0, 0, 0.25);
-  animation: orb 3s ease-in-out infinite;
-}
-
-@keyframes orb { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 
 .pc-waveform {
   display: flex;

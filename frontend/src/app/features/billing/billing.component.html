@@ -15,8 +15,8 @@
     <div class="current-plan">
       <div class="plan-info">
         <span class="mono plan-label">CURRENT PLAN</span>
-        <h2 class="plan-name">{{ subscription()!.plan }}</h2>
-        <span class="plan-meta">{{ subscription()!.billing_cycle }} · {{ subscription()!.is_active ? 'Active' : 'Inactive' }}</span>
+        <h2 class="plan-name">{{ planLabel(subscription()!.plan) }}</h2>
+        <span class="plan-meta">{{ cycleLabel(subscription()!.billing_cycle) }} · {{ subscription()!.is_active ? 'Active' : 'Inactive' }}</span>
         @if (subscription()!.current_period_end) {
           <span class="plan-meta">Next billing: {{ formatDate(subscription()!.current_period_end) }}</span>
         }
