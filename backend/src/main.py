@@ -8,6 +8,7 @@ from api.cvs import router as router_cv
 from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 from api.transcripts import router as router_transcripts
+from core.config import settings as settings_api
 from core.logging import setup_logging
 
 # Configure stdlib logging before anything else so import-time log lines
@@ -22,7 +23,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        '*'
+        settings_api.frontend_url,
     ],  # lock down in production to: ["https://www.azens.net"], so only frontend can call this API
     allow_credentials=True,
     allow_methods=['*'],

@@ -31,7 +31,7 @@ from schemas.auth import (
     UserResponse,
 )
 from services.email import send_password_reset_email, send_verification_email
-from services.s3 import delete_object
+from services.s3 import delete_object_best_effort
 
 logger = logging.getLogger(__name__)
 
@@ -516,72 +516,73 @@ async def reset_password(
 
 
 @router.delete('/delete-account', status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)) -> None:
-    # Find user by token
-    result = await db.execute(
-        select(User).where(User.id == user_id)
-    )
+async def delete_account(
+    background_tasks: BackgroundTasks,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    # Design: all DB deletes happen inside a single transaction (via get_db
+    # auto-commit at response end). S3 cleanup is deferred to a BackgroundTask
+    # so that the DB write succeeds first and the user's GDPR right-to-erasure
+    # is satisfied even if S3 is slow or flaky. If an S3 delete fails, it's
+    # logged and the orphan is left for a future janitor sweep — better than
+    # "we deleted half your files and told you it worked" or "we can't delete
+    # your account because S3 is down."
+    result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail='User not found')
-    
-    # Find sessions to delete
+
+    # Collect S3 keys BEFORE deleting the CV rows — after `db.delete(cv)` the
+    # ORM objects are expired and reading `cv.s3_key` would re-query (or fail).
+    result_cvs = await db.execute(select(CV).where(CV.user_id == user_id))
+    cvs = result_cvs.scalars().all()
+    s3_keys_to_delete = [cv.s3_key for cv in cvs]
+
+    # Delete session-scoped children first (feedback + transcripts), then
+    # sessions themselves. FK constraints would complain otherwise.
     result_sessions = await db.execute(
         select(Session).where(Session.user_id == user_id)
     )
-    
     sessions = result_sessions.scalars().all()
-    
+
     if sessions:
-        # Find and delete user-related feedback
+        session_ids = [s.id for s in sessions]
+
         result_feedback = await db.execute(
-            select(Feedback).where(Feedback.session_id.in_([s.id for s in sessions]))
+            select(Feedback).where(Feedback.session_id.in_(session_ids))
         )
-        
-        feedbacks = result_feedback.scalars().all()
-        
-        for feedback in feedbacks:
+        for feedback in result_feedback.scalars().all():
             await db.delete(feedback)
-        
-        # Find and delete all transcripts
+
         result_transcripts = await db.execute(
-            select(Transcript).where(Transcript.session_id.in_([s.id for s in sessions]))
+            select(Transcript).where(Transcript.session_id.in_(session_ids))
         )
-        
-        transcripts = result_transcripts.scalars().all()
-        
-        for transcript in transcripts:
+        for transcript in result_transcripts.scalars().all():
             await db.delete(transcript)
-        
-        # Delete sessions
+
         for session in sessions:
             await db.delete(session)
-    
-    # Find CV(s) and delete
-    result_cvs = await db.execute(
-        select(CV).where(CV.user_id == user_id)
-    )
-    
-    cvs = result_cvs.scalars().all()
-    
+
+    # Delete CV rows (S3 objects scheduled for cleanup below).
     for cv in cvs:
-        # Delete in Blob
-        await asyncio.to_thread(delete_object, cv.s3_key)
-        
-        # Delete in DB
         await db.delete(cv)
-    
-    # Find subscription and delete
+
+    # Delete subscription, if any.
     result_sub = await db.execute(
         select(Subscription).where(Subscription.user_id == user_id)
     )
-    
     sub = result_sub.scalar_one_or_none()
-    
     if sub:
         await db.delete(sub)
-        await db.flush()
-    
-    # Delete user
+
+    # Delete user — the commit happens automatically when the route returns
+    # (via get_db's finally block).
     await db.delete(user)
+
+    # Schedule best-effort S3 cleanup. BackgroundTasks fire after the response
+    # is sent AND after get_db commits, so by the time these run the DB state
+    # is durable. Each helper call logs + swallows on failure.
+    for s3_key in s3_keys_to_delete:
+        background_tasks.add_task(delete_object_best_effort, s3_key)

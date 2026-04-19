@@ -77,6 +77,15 @@ async def _generate_feedback(
 
 
 async def generate_and_save_feedback(session_id: UUID):
+    # Runs as a FastAPI BackgroundTask, so any uncaught exception vanishes
+    # into the task runner's logs with no stack trace. Broad try/except +
+    # logger.exception below captures the real failure reason.
+    #
+    # TODO (UX): on failure the user's /feedback/{id} endpoint 404s forever
+    # with no indication why. Proper fix is a feedback_status column on
+    # Session (PENDING | GENERATED | FAILED | SKIPPED) surfaced via the
+    # session response so the frontend can show "Feedback generation
+    # failed — retry." Tracked separately.
     async with SessionLocal() as db:
         # 1. Load session
         result = await db.execute(select(Session).where(Session.id == session_id))
@@ -106,21 +115,33 @@ async def generate_and_save_feedback(session_id: UUID):
 
         formatted_transcript = '\n'.join(f'{t.role}: {t.content}' for t in transcripts)
 
-        # 3. Call generate_feedback()
-        llm_result = await _generate_feedback(
-            interview_type=curr_sess.session_type,
-            transcript=formatted_transcript,
-            seniority_level=curr_sess.seniority_level,
-            questions_asked=None,
-        )  # TODO: Implement question tracking
+        try:
+            # 3. Call generate_feedback() — OpenAI can fail for many reasons:
+            # rate limit, quota, network, schema-parse, model unavailable.
+            llm_result = await _generate_feedback(
+                interview_type=curr_sess.session_type,
+                transcript=formatted_transcript,
+                seniority_level=curr_sess.seniority_level,
+                questions_asked=None,
+            )  # TODO: Implement question tracking
 
-        # 4. Create Feedback record, save
-        new_feedback = Feedback(
-            session_id=session_id,
-            feedback_type=curr_sess.session_type,
-            data=llm_result.model_dump(),  # entire Pydantic -> JSONB
-        )
+            # 4. Create Feedback record, save
+            new_feedback = Feedback(
+                session_id=session_id,
+                feedback_type=curr_sess.session_type,
+                data=llm_result.model_dump(),  # entire Pydantic -> JSONB
+            )
 
-        db.add(new_feedback)
-        await db.flush()
-        await db.commit()
+            db.add(new_feedback)
+            await db.flush()
+            await db.commit()
+        except Exception:
+            # Broad catch on purpose: OpenAI errors, httpx timeouts, Pydantic
+            # validation on the LLM response, DB integrity errors — all get
+            # logged with a stack trace and swallowed. logger.exception
+            # auto-captures the traceback; rollback clears any pending ORM
+            # state so the session object stays usable if we ever add retry.
+            await db.rollback()
+            logger.exception(
+                'Feedback generation failed for session %s', session_id
+            )

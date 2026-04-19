@@ -1,9 +1,12 @@
+import logging
 import uuid
 
 import boto3
 from botocore.config import Config
 
 from core.config import settings as settings_blob
+
+logger = logging.getLogger(__name__)
 
 s3_client = boto3.client(
     's3',
@@ -42,6 +45,22 @@ def generate_download_url(s3_key: str) -> str:
 
 def delete_object(s3_key: str) -> None:
     s3_client.delete_object(Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key)
+
+
+def delete_object_best_effort(s3_key: str) -> None:
+    """Delete an S3 object, logging (not raising) on failure.
+
+    Intended for background-task cleanup where the DB is already in a
+    consistent state (row deleted, transaction committed). Orphan objects
+    left behind by failures are the responsibility of a separate janitor
+    sweep — not built yet; filed as tech debt.
+    """
+    try:
+        s3_client.delete_object(
+            Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key
+        )
+    except Exception:
+        logger.exception('S3 delete failed for key=%s', s3_key)
 
 
 def download_file(s3_key: str) -> bytes:

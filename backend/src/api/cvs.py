@@ -1,8 +1,7 @@
-import asyncio
 import re
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +14,7 @@ from schemas.cv import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
-from services.s3 import delete_object, generate_upload_url
+from services.s3 import delete_object_best_effort, generate_upload_url
 
 router = APIRouter()
 
@@ -79,7 +78,7 @@ async def confirm(
 @router.get('/cvs', response_model=list[CVResponse], status_code=status.HTTP_200_OK)
 async def get_cvs(
     user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
-) -> CVResponse:
+) -> list[CVResponse]:
     query = select(CV).where(CV.user_id == user_id).order_by(CV.created_at.desc())
     result = await db.execute(query)
     return result.scalars().all()
@@ -115,14 +114,24 @@ async def activate_cv(
 @router.delete('/{cv_id}', status_code=status.HTTP_204_NO_CONTENT)
 async def delete_cv(
     cv_id: UUID,
+    background_tasks: BackgroundTasks,
     user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
+    # Same pattern as /auth/delete-account: delete the DB row inside the
+    # transaction, then schedule the S3 cleanup as a best-effort background
+    # task. Guarantees the user's "CV deleted" expectation is durable even
+    # if S3 is flaky; orphan S3 files are acceptable tech debt for a future
+    # janitor sweep.
     result = await db.execute(select(CV).where(CV.id == cv_id, CV.user_id == user_id))
     deleted_cv = result.scalar_one_or_none()
 
     if not deleted_cv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
-    await asyncio.to_thread(delete_object, deleted_cv.s3_key)
+    # Capture the s3_key BEFORE db.delete — afterwards the ORM object is
+    # expired and attribute access would re-query (or fail).
+    s3_key = deleted_cv.s3_key
     await db.delete(deleted_cv)
+
+    background_tasks.add_task(delete_object_best_effort, s3_key)
