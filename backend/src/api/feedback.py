@@ -25,6 +25,7 @@ async def get_feedback(
         select(Feedback)
         .join(Session, Feedback.session_id == Session.id)
         .where(Session.user_id == user_id, Feedback.session_id == session_id)
+        .unique()
     )
 
     feedback = result.scalar_one_or_none()

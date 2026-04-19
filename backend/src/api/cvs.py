@@ -1,3 +1,4 @@
+import asyncio
 import re
 from uuid import UUID
 
@@ -50,7 +51,7 @@ async def confirm(
     db: AsyncSession = Depends(get_db),
 ) -> CVResponse:
     # Deactivate any previos active CV
-    result = await db.execute(select(CV).where(CV.user_id == user_id))
+    result = await db.execute(select(CV.count()).where(CV.user_id == user_id))
     all_cvs = result.scalars().all()
 
     if len(all_cvs) >= 3:
@@ -123,5 +124,5 @@ async def delete_cv(
     if not deleted_cv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
-    delete_object(deleted_cv.s3_key)
+    asyncio.to_thread(delete_object, deleted_cv.s3_key)
     await db.delete(deleted_cv)

@@ -23,7 +23,7 @@ async def get_questions(
     difficulty: Difficulty | None = None,
     admin_id: UUID = Depends(get_admin_user_id),
     db: AsyncSession = Depends(get_db),
-) -> QuestionResponse:
+) -> list[QuestionResponse]:
     query = select(Question).order_by(Question.created_at.desc())
     if seniority_level:
         query = query.where(Question.seniority_level == seniority_level)

@@ -25,7 +25,7 @@ class CVResponse(BaseModel):
 
     id: UUID
     filename: str
-    file_size: int
+    file_size: int | None
 
     is_active: bool
     created_at: datetime

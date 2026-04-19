@@ -1,19 +1,19 @@
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from models.enums import Language, SeniorityLevel
 
 
 class SignUp(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=10)
     full_name: str | None
 
 
 class LogIn(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=10)
 
 
 class TokenResponse(BaseModel):

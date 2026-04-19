@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
@@ -29,6 +30,7 @@ from schemas.auth import (
     UserResponse,
 )
 from services.email import send_password_reset_email, send_verification_email
+from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 
@@ -57,7 +59,7 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
     )  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
 
     # 3. Send a verification email
-    send_verification_email(user.email, user.verification_token)
+    await asyncio.to_thread(send_verification_email(user.email, user.verification_token))
 
     # 4. Create token and return
     token = create_access_token(str(user.id))
@@ -94,7 +96,7 @@ async def me(
     user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
 ) -> UserResponse:
     # 1. Get user profile from DB
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).where(User.id == user_id).unique())
 
     existing_user = result.scalar_one_or_none()
     if not existing_user:
@@ -193,7 +195,6 @@ async def google_callback(
         user.google_id = google_profile['id']
 
     # 3. Create token and redirect to frontend
-    from fastapi.responses import RedirectResponse
     token = create_access_token(str(user.id))
     return RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
@@ -270,7 +271,6 @@ async def linkedin_callback(
         user.linkedin_id = linkedin_profile['sub']
 
     # 3. Create token and redirect to frontend
-    from fastapi.responses import RedirectResponse
     token = create_access_token(str(user.id))
     return RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
@@ -315,7 +315,7 @@ async def forgot_password(
     user.password_reset_expires = reset_expires
 
     # Send email
-    send_password_reset_email(to_email=user.email, token=reset_token)
+    await asyncio.to_thread(send_password_reset_email(to_email=user.email, token=reset_token))
 
     return {'message': 'Password reset link sent'}
 
@@ -395,7 +395,7 @@ async def delete_account(user_id: UUID = Depends(get_current_user_id), db: Async
     
     for cv in cvs:
         # Delete in Blob
-        await delete_object(cv.s3_key)
+        asyncio.to_thread(delete_object, cv.s3_key)
         
         # Delete in DB
         await db.delete(cv)
@@ -413,4 +413,3 @@ async def delete_account(user_id: UUID = Depends(get_current_user_id), db: Async
     
     # Delete user
     await db.delete(user)
-    await db.flush()
