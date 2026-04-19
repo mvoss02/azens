@@ -70,6 +70,7 @@ async def confirm(
     # Add new record
     db.add(cv_record)
     await db.flush()
+    await db.commit()
     await db.refresh(cv_record)  # re-reads the object from DB, including updated_at
 
     return cv_record
