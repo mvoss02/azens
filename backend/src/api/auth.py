@@ -5,13 +5,8 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
-from models.cv import CV
-from models.feedback import Feedback
-from models.session import Session
-from models.subscription import Subscription
-from models.transcript import Transcript
-from services.s3 import delete_object
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +14,11 @@ from api.deps import get_current_user_id
 from core.config import settings as settings_auth
 from core.database import get_db
 from core.security import create_access_token, hash_password, verify_password
+from models.cv import CV
+from models.feedback import Feedback
+from models.session import Session
+from models.subscription import Subscription
+from models.transcript import Transcript
 from models.user import User
 from schemas.auth import (
     ForgotPasswordRequest,
@@ -30,9 +30,13 @@ from schemas.auth import (
     UserResponse,
 )
 from services.email import send_password_reset_email, send_verification_email
-from fastapi.responses import RedirectResponse
+from services.s3 import delete_object
 
 router = APIRouter()
+
+
+_last_resend_at: dict[UUID, datetime] = {}
+_DUMMY_PASSWORD_HASH = hash_password('moritz-is-great') # any placeholder string
 
 
 @router.post(
@@ -52,6 +56,8 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
         hashed_password=hash_password(new_user.password),
         full_name=new_user.full_name,
         verification_token=secrets.token_urlsafe(32),
+        verification_token_expires=datetime.now(UTC)
+        + timedelta(hours=settings_auth.verification_token_ttl_hours),
     )
     db.add(user)
     await (
@@ -59,7 +65,7 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
     )  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
 
     # 3. Send a verification email
-    await asyncio.to_thread(send_verification_email(user.email, user.verification_token))
+    await asyncio.to_thread(send_verification_email, user.email, user.verification_token)
 
     # 4. Create token and return
     token = create_access_token(str(user.id))
@@ -72,15 +78,19 @@ async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenRespons
     result = await db.execute(select(User).where(User.email == user.email))
 
     existing_user = result.scalar_one_or_none()
-    if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Email or Password incorrect',
-        )
-
-    # 2. Verify password
-    password_is_valid = verify_password(user.password, existing_user.hashed_password)
-    if not password_is_valid:
+    
+    # 2. Validate password
+    if existing_user and existing_user.hashed_password:
+        hash_to_check = existing_user.hashed_password
+    else:
+        hash_to_check = _DUMMY_PASSWORD_HASH
+    
+    password_is_valid = verify_password(user.password, hash_to_check)
+    
+    # Note: Also catches OAuth-only users (hashed_password is None) trying to
+    # password-login; they fall through to the dummy hash and fail the
+    # bcrypt check.
+    if not existing_user or not password_is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Email or Password incorrect',
@@ -96,9 +106,9 @@ async def me(
     user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
 ) -> UserResponse:
     # 1. Get user profile from DB
-    result = await db.execute(select(User).where(User.id == user_id).unique())
+    result = await db.execute(select(User).where(User.id == user_id))
 
-    existing_user = result.scalar_one_or_none()
+    existing_user = result.unique().scalar_one_or_none()
     if not existing_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail='Not authorized'
@@ -133,7 +143,7 @@ async def google():
     params = urlencode(
         {
             'client_id': settings_auth.google_client_id,
-            'redirect_uri': 'http://localhost:8080/api/v1/auth/google/callback',
+            'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/google/callback',
             'scope': 'openid email profile',
             'response_type': 'code',
         }
@@ -154,7 +164,7 @@ async def google_callback(
                 'client_id': settings_auth.google_client_id,
                 'client_secret': settings_auth.google_client_secret,
                 'code': code,
-                'redirect_uri': 'http://localhost:8080/api/v1/auth/google/callback',
+                'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/google/callback',
                 'grant_type': 'authorization_code',
             },
             headers={'Accept': 'application/json'},
@@ -206,7 +216,7 @@ async def linkedin():
     params = urlencode(
         {
             'client_id': settings_auth.linkedin_client_id,
-            'redirect_uri': 'http://localhost:8080/api/v1/auth/linkedin/callback',
+            'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/linkedin/callback',
             'scope': 'openid profile email',
             'response_type': 'code',
         }
@@ -227,7 +237,7 @@ async def linkedin_callback(
                 'client_id': settings_auth.linkedin_client_id,
                 'client_secret': settings_auth.linkedin_client_secret,
                 'code': code,
-                'redirect_uri': 'http://localhost:8080/api/v1/auth/linkedin/callback',
+                'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/linkedin/callback',
                 'grant_type': 'authorization_code',
             },
             headers={
@@ -288,22 +298,90 @@ async def verify_email(token: str, db: AsyncSession = Depends(get_db)) -> dict:
             status.HTTP_400_BAD_REQUEST, detail='Invalid verification token'
         )
 
-    # Mark as verified, clear the token
+    # Reject expired tokens. The column is nullable to accommodate users
+    # created before this column existed (pre-migration) — treat a null
+    # expiry the same as "expired" rather than "never expires."
+    if (
+        user.verification_token_expires is None
+        or user.verification_token_expires < datetime.now(UTC)
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, detail='Verification token expired'
+        )
+
+    # Mark as verified, clear the token + expiry so it can't be replayed
     user.is_verified = True
     user.verification_token = None
+    user.verification_token_expires = None
 
     return {'message': 'Email verified successfully'}
 
 
+@router.post('/resend-verification', status_code=status.HTTP_200_OK)
+async def resend_verification(
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Issue a fresh verification token + email for the current user.
+
+    - Silently no-ops if the user is already verified (prevents info leak
+      about account state via a 400/409).
+    - Rate-limited per-user to avoid Brevo-quota abuse on rapid clicks.
+    """
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, detail='Not authenticated'
+        )
+
+    # No-op for already-verified users. We return 200 rather than 400 so
+    # double-clicks on the banner right after verifying don't throw a scary
+    # error at the user.
+    if user.is_verified:
+        return {'message': 'Email is already verified'}
+
+    now = datetime.now(UTC)
+    last = _last_resend_at.get(user_id)
+    if last is not None:
+        elapsed = (now - last).total_seconds()
+        if elapsed < settings_auth.resend_verification_cooldown_seconds:
+            retry_after = int(settings_auth.resend_verification_cooldown_seconds - elapsed)
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f'Please wait {retry_after}s before requesting another email',
+            )
+
+    # Rotate the token — even if the previous one was still valid, we want
+    # the user's fresh email to point at a working link, and we want any
+    # leaked earlier token to stop working.
+    user.verification_token = secrets.token_urlsafe(32)
+    user.verification_token_expires = now + timedelta(
+        hours=settings_auth.verification_token_ttl_hours
+    )
+
+    await asyncio.to_thread(
+        send_verification_email, user.email, user.verification_token
+    )
+
+    _last_resend_at[user_id] = now
+    return {'message': 'Verification email sent'}
+
+
 @router.post('/forgot-password', status_code=status.HTTP_200_OK)
 async def forgot_password(
-    body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
+    background_tasks: BackgroundTasks,
+    body: ForgotPasswordRequest, 
+    db: AsyncSession = Depends(get_db)
 ) -> dict:
     # Find user by email
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if not user:
+        _ = secrets.token_urlsafe(32) # match the existing-user path's CPU
         return {'message': 'Password reset link sent'}
 
     # Generate reset token and expiry
@@ -315,8 +393,8 @@ async def forgot_password(
     user.password_reset_expires = reset_expires
 
     # Send email
-    await asyncio.to_thread(send_password_reset_email(to_email=user.email, token=reset_token))
-
+    background_tasks.add_task(send_password_reset_email, user.email, reset_token)
+    
     return {'message': 'Password reset link sent'}
 
 
@@ -395,7 +473,7 @@ async def delete_account(user_id: UUID = Depends(get_current_user_id), db: Async
     
     for cv in cvs:
         # Delete in Blob
-        asyncio.to_thread(delete_object, cv.s3_key)
+        await asyncio.to_thread(delete_object, cv.s3_key)
         
         # Delete in DB
         await db.delete(cv)

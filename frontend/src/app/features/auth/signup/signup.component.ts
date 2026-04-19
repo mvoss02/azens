@@ -23,6 +23,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 export class SignupComponent {
   form: FormGroup;
   isLoading = signal(false);
+  oauthLoading = signal<'google' | 'linkedin' | null>(null);
   errorMessage = signal('');
 
   constructor(
@@ -37,11 +38,17 @@ export class SignupComponent {
       {
         full_name: ['', Validators.required],
         email: ['', [Validators.required, Validators.email]],
-        password: ['', [Validators.required, Validators.minLength(8)]],
+        // Backend enforces min_length=10 on SignUp.password — mirror it here
+        // so the user gets a local error instead of a 422 round-trip.
+        password: ['', [Validators.required, Validators.minLength(10)]],
         confirmPassword: ['', Validators.required],
       },
       { validators: passwordsMatch },
     );
+
+    if (this.route.snapshot.queryParamMap.get('error') === 'oauth_failed') {
+      this.errorMessage.set('Sign-up via Google/LinkedIn failed. Please try again.');
+    }
   }
 
   onSubmit(): void {
@@ -49,13 +56,25 @@ export class SignupComponent {
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    const { confirmPassword, ...payload } = this.form.getRawValue();
+    const raw = this.form.getRawValue();
+    const { confirmPassword, ...rest } = raw;
+    const payload = {
+      ...rest,
+      email: (rest.email ?? '').trim(),
+      full_name: (rest.full_name ?? '').trim(),
+    };
+
     this.auth.signup(payload).subscribe({
       next: () => {
         // Set preferred language from the landing page selection
         this.http.put(`${environment.apiUrl}/auth/me`, {
           preferred_language: this.i18n.backendValue(),
-        }).subscribe();
+        }).subscribe({
+          error: () => {
+            // Non-fatal: the user is signed up, just couldn't persist language.
+            // They can change it later in Settings. Don't block navigation.
+          },
+        });
 
         // Always go to billing after signup — nudge them to pick a plan
         const plan = this.route.snapshot.queryParamMap.get('plan');
@@ -69,14 +88,25 @@ export class SignupComponent {
   }
 
   signupWithGoogle(): void {
-    this.http.get<{ redirect_url: string }>(`${environment.apiUrl}/auth/google`).subscribe({
-      next: (res) => window.location.href = res.redirect_url,
-    });
+    this.startOAuth('google', `${environment.apiUrl}/auth/google`);
   }
 
   signupWithLinkedIn(): void {
-    this.http.get<{ redirect_url: string }>(`${environment.apiUrl}/auth/linkedin`).subscribe({
-      next: (res) => window.location.href = res.redirect_url,
+    this.startOAuth('linkedin', `${environment.apiUrl}/auth/linkedin`);
+  }
+
+  private startOAuth(provider: 'google' | 'linkedin', endpoint: string): void {
+    if (this.oauthLoading()) return;
+    this.oauthLoading.set(provider);
+    this.errorMessage.set('');
+    this.http.get<{ redirect_url: string }>(endpoint).subscribe({
+      next: (res) => {
+        window.location.href = res.redirect_url;
+      },
+      error: () => {
+        this.errorMessage.set('Could not start the sign-up flow. Please try again.');
+        this.oauthLoading.set(null);
+      },
     });
   }
 

@@ -13,7 +13,7 @@ class SignUp(BaseModel):
 
 class LogIn(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=10)
+    password: str
 
 
 class TokenResponse(BaseModel):

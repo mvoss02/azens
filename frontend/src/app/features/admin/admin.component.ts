@@ -24,8 +24,11 @@ interface Question {
 export class AdminComponent implements OnInit {
   questions = signal<Question[]>([]);
   isLoading = signal(true);
+  isSaving = signal(false);
   showForm = signal(false);
   editingId = signal<string | null>(null);
+  saveError = signal('');
+  listError = signal('');
   form: FormGroup;
 
   readonly topics = ['dcf', 'lbo', 'ma', 'accounting', 'valuation', 'general'];
@@ -52,47 +55,70 @@ export class AdminComponent implements OnInit {
 
   loadQuestions(): void {
     this.isLoading.set(true);
+    this.listError.set('');
     this.http.get<Question[]>(this.api).subscribe({
       next: (q) => { this.questions.set(q); this.isLoading.set(false); },
-      error: () => this.isLoading.set(false),
+      error: (err) => {
+        this.listError.set(err.error?.detail ?? 'Failed to load questions.');
+        this.isLoading.set(false);
+      },
     });
   }
 
   openCreate(): void {
     this.form.reset({ topic: 'dcf', difficulty: 'easy', seniority_level: 'analyst', language: 'english' });
     this.editingId.set(null);
+    this.saveError.set('');
     this.showForm.set(true);
   }
 
   openEdit(q: Question): void {
     this.form.patchValue(q);
     this.editingId.set(q.id);
+    this.saveError.set('');
     this.showForm.set(true);
   }
 
   closeForm(): void {
     this.showForm.set(false);
+    this.saveError.set('');
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.isSaving()) {
+      // Touch every control so invalid fields light up instead of the form
+      // silently refusing to submit.
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.isSaving.set(true);
+    this.saveError.set('');
     const body = this.form.getRawValue();
 
-    if (this.editingId()) {
-      this.http.put(`${this.api}/${this.editingId()}`, body).subscribe({
-        next: () => { this.closeForm(); this.loadQuestions(); },
-      });
-    } else {
-      this.http.post(this.api, body).subscribe({
-        next: () => { this.closeForm(); this.loadQuestions(); },
-      });
-    }
+    const req$ = this.editingId()
+      ? this.http.put(`${this.api}/${this.editingId()}`, body)
+      : this.http.post(this.api, body);
+
+    req$.subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.closeForm();
+        this.loadQuestions();
+      },
+      error: (err) => {
+        this.saveError.set(err.error?.detail ?? 'Failed to save question.');
+        this.isSaving.set(false);
+      },
+    });
   }
 
   deleteQuestion(q: Question): void {
     if (!confirm('Delete this question?')) return;
     this.http.delete(`${this.api}/${q.id}`).subscribe({
       next: () => this.loadQuestions(),
+      error: (err) => {
+        this.listError.set(err.error?.detail ?? 'Failed to delete question.');
+      },
     });
   }
 }

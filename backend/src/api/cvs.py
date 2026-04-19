@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_user_id
+from api.deps import get_current_user_id, get_verified_user_id
 from core.database import get_db
 from models.cv import CV
 from schemas.cv import (
@@ -28,7 +28,7 @@ def _sanitize_filename(filename: str) -> str:
     '/upload-url', response_model=UploadUrlResponse, status_code=status.HTTP_200_OK
 )
 async def upload_url(
-    body: UploadUrlRequest, user_id: UUID = Depends(get_current_user_id)
+    body: UploadUrlRequest, user_id: UUID = Depends(get_verified_user_id)
 ) -> UploadUrlResponse:
     extension = body.filename.rsplit('.', 1)[-1].lower()
     if extension != 'pdf':
@@ -47,11 +47,11 @@ async def upload_url(
 @router.post('/confirm', response_model=CVResponse, status_code=status.HTTP_200_OK)
 async def confirm(
     body: ConfirmUploadRequest,
-    user_id: UUID = Depends(get_current_user_id),
+    user_id: UUID = Depends(get_verified_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> CVResponse:
     # Deactivate any previos active CV
-    result = await db.execute(select(CV.count()).where(CV.user_id == user_id))
+    result = await db.execute(select(CV).where(CV.user_id == user_id))
     all_cvs = result.scalars().all()
 
     if len(all_cvs) >= 3:
@@ -124,5 +124,5 @@ async def delete_cv(
     if not deleted_cv:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
-    asyncio.to_thread(delete_object, deleted_cv.s3_key)
+    await asyncio.to_thread(delete_object, deleted_cv.s3_key)
     await db.delete(deleted_cv)

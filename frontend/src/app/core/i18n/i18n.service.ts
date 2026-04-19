@@ -1,4 +1,4 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, isDevMode } from '@angular/core';
 
 export type AppLanguage = 'en' | 'de' | 'es' | 'it' | 'nl';
 
@@ -34,7 +34,25 @@ export class I18nService {
 
   t(key: string): string {
     const lang = this._lang();
-    return translations[lang]?.[key] ?? translations['en'][key] ?? key;
+    const localized = translations[lang]?.[key];
+    if (localized !== undefined) return localized;
+
+    // Fall back to English. In dev mode, warn once per (lang, key) pair so we
+    // can actually see which strings still need translating — in prod we stay
+    // quiet and just return the EN copy.
+    if (lang !== 'en' && isDevMode()) {
+      this.warnMissing(lang, key);
+    }
+
+    return translations['en'][key] ?? key;
+  }
+
+  private _warned = new Set<string>();
+  private warnMissing(lang: AppLanguage, key: string): void {
+    const tag = `${lang}:${key}`;
+    if (this._warned.has(tag)) return;
+    this._warned.add(tag);
+    console.warn(`[i18n] missing ${lang} translation for "${key}" — falling back to EN`);
   }
 
   private loadLang(): AppLanguage {
@@ -168,11 +186,15 @@ const en: TranslationMap = {
   'auth.signup.sub': 'Start practising for your IB & PE interviews',
 };
 
-// All other languages fall back to English for now.
-// To translate German: const de: TranslationMap = { ...en, 'hero.title': 'Übe das Interview...', ... };
-const de: TranslationMap = { ...en };
-const es: TranslationMap = { ...en };
-const it: TranslationMap = { ...en };
-const nl: TranslationMap = { ...en };
+// All other languages start empty — t() falls back to the EN copy for any
+// missing key, and logs a dev-mode warning so we notice untranslated strings
+// instead of shipping English text under a German flag.
+//
+// To translate, just add keys:
+//   const de: TranslationMap = { 'hero.title': 'Übe das Interview...', ... };
+const de: TranslationMap = {};
+const es: TranslationMap = {};
+const it: TranslationMap = {};
+const nl: TranslationMap = {};
 
 const translations: Record<AppLanguage, TranslationMap> = { en, de, es, it, nl };

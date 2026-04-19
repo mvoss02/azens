@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { tap, switchMap, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, filter, map, of, switchMap, take, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User, TokenResponse, LoginRequest, SignupRequest } from '../models/user.model';
 
@@ -12,17 +12,40 @@ export class AuthService {
   private readonly api = `${environment.apiUrl}/auth`;
   private _user = signal<User | null>(null);
 
+  // `false` until the initial /me call settles on app boot. Guards wait on
+  // this so a hard-refresh on /app/* doesn't redirect to /login before we
+  // know who the user is.
+  private _bootstrapped$ = new BehaviorSubject<boolean>(false);
+
   readonly user = this._user.asReadonly();
   readonly isLoggedIn = computed(() => this._user() !== null);
   readonly isAdmin = computed(() => this._user()?.is_admin === true);
 
   constructor(private http: HttpClient, private router: Router) {
     const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      this.fetchCurrentUser().subscribe({
-        error: () => this.clearSession(),
-      });
+    if (!token) {
+      this._bootstrapped$.next(true);
+      return;
     }
+    this.fetchCurrentUser().subscribe({
+      next: () => this._bootstrapped$.next(true),
+      error: () => {
+        this.clearSession();
+        this._bootstrapped$.next(true);
+      },
+    });
+  }
+
+  /**
+   * Emits once the initial /me call has settled, then completes.
+   * Guards use this to gate their redirect decision on the real auth state.
+   */
+  whenBootstrapped(): Observable<boolean> {
+    return this._bootstrapped$.pipe(
+      filter((ready) => ready),
+      take(1),
+      map(() => this._user() !== null),
+    );
   }
 
   signup(body: SignupRequest): Observable<User> {
@@ -40,7 +63,8 @@ export class AuthService {
   }
 
   logout(): void {
-    this.http.post(`${this.api}/logout`, {}).subscribe();
+    // The backend has no /auth/logout endpoint — JWTs are stateless and
+    // "logout" is just dropping the token locally. No HTTP call needed.
     this.clearSession();
     this.router.navigate(['/']);
   }
@@ -55,24 +79,28 @@ export class AuthService {
     );
   }
 
-  handleOAuthCallback(token: string): void {
+  /**
+   * Exchanges the OAuth-returned token for a loaded user profile, then
+   * decides where to land the user. Returns the target so the callback
+   * component can navigate (keeps routing concerns out of this service).
+   */
+  handleOAuthCallback(token: string): Observable<'dashboard' | 'billing'> {
     this.saveToken(token);
-    this.fetchCurrentUser().subscribe({
-      next: () => {
-        // Check if user has an active subscription
-        this.http.get<any>(`${environment.apiUrl}/billing/subscription`).subscribe({
-          next: (sub) => {
-            if (sub && sub.is_active) {
-              this.router.navigate(['/app/dashboard']);
-            } else {
-              this.router.navigate(['/app/billing']);
-            }
-          },
-          error: () => this.router.navigate(['/app/billing']),
-        });
-      },
-      error: () => this.clearSession(),
-    });
+    return this.fetchCurrentUser().pipe(
+      switchMap(() =>
+        this.http
+          .get<{ is_active?: boolean } | null>(`${environment.apiUrl}/billing/subscription`)
+          .pipe(
+            // If /billing/subscription itself errors, treat the user as
+            // unsubscribed and land them on billing — it's not an auth failure.
+            catchError(() => of(null)),
+            map((sub) => (sub && sub.is_active ? ('dashboard' as const) : ('billing' as const))),
+          ),
+      ),
+      tap({
+        error: () => this.clearSession(),
+      }),
+    );
   }
 
   private saveToken(token: string): void {

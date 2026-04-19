@@ -112,19 +112,23 @@ export class SessionSetupComponent implements OnInit {
   startSession(): void {
     if (this.isLoading()) return;
 
+    // Flip the loading flag BEFORE validation and BEFORE the HTTP call so a
+    // fast double-click can't land two /session/start requests (each of which
+    // creates a Daily room and starts a Pipecat bot — real money on the line).
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+
     const data = this.form.getRawValue();
 
     if (data.session_type === 'cv_screen' && !data.cv_id) {
       this.errorMessage.set('Please select a CV for the screening session.');
+      this.isLoading.set(false);
       return;
     }
 
     if (data.session_type !== 'cv_screen') {
       data.cv_id = null;
     }
-
-    this.isLoading.set(true);
-    this.errorMessage.set('');
 
     this.http.post<any>(`${environment.apiUrl}/session/start`, data).subscribe({
       next: (session) => {

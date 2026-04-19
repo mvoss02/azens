@@ -63,11 +63,11 @@
           class="form-input"
           [class.error]="password.invalid && password.touched"
           formControlName="password"
-          placeholder="Min. 8 characters"
+          placeholder="Min. 10 characters"
           autocomplete="new-password"
         />
         @if (password.hasError('minlength') && password.touched) {
-          <span class="form-error">At least 8 characters</span>
+          <span class="form-error">At least 10 characters</span>
         }
       </div>
 

@@ -70,7 +70,11 @@ export class SettingsComponent implements OnInit {
       next: () => {
         this.saveMessage.set('Settings saved.');
         this.isSaving.set(false);
-        this.auth.fetchCurrentUser().subscribe();
+        // Refresh the cached user so navbar/name updates pick up the new values.
+        // If this refresh itself fails, don't surface it as "save failed" —
+        // the save already succeeded; we just have slightly stale local state
+        // until the next page load.
+        this.auth.fetchCurrentUser().subscribe({ error: () => {} });
       },
       error: () => {
         this.saveMessage.set('Failed to save.');

@@ -25,10 +25,9 @@ async def get_feedback(
         select(Feedback)
         .join(Session, Feedback.session_id == Session.id)
         .where(Session.user_id == user_id, Feedback.session_id == session_id)
-        .unique()
     )
 
-    feedback = result.scalar_one_or_none()
+    feedback = result.unique().scalar_one_or_none()
 
     if not feedback:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Feedback not found')

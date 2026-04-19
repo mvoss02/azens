@@ -50,8 +50,8 @@ async def checkout(
         mode='subscription',
         customer_email=user.email,
         line_items=[{'price': body.price_id, 'quantity': 1}],
-        success_url='http://localhost:4200/billing?success=true',
-        cancel_url='http://localhost:4200/billing?cancelled=true',
+        success_url=f'{settings_billing.frontend_url}/billing?success=true',
+        cancel_url=f'{settings_billing.frontend_url}/billing?cancelled=true',
         metadata={'user_id': str(user_id)},  # so webhook knows which user paid
     )
 
@@ -94,7 +94,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        user_id = session['metadata']['user_id']
+        user_id = UUID(session['metadata']['user_id'])
 
         # Get price ids and payment interval
         stripe_sub = stripe.Subscription.retrieve(session['subscription'])
@@ -228,6 +228,6 @@ async def portal(
 
     session = stripe.billing_portal.Session.create(
         customer=sub.stripe_customer_id,
-        return_url='http://localhost:4200/billing',
+        return_url=f'{settings_billing.frontend_url}/billing',
     )
     return {'portal_url': session.url}

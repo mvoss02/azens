@@ -6,6 +6,7 @@
 .header-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 
 .empty { font-size: 13.5px; color: var(--color-text-faint); }
+.form-error { font-size: 13px; color: var(--color-error); margin: 8px 0 0; }
 .empty-state {
   text-align: center; padding: 32px;
   background: var(--color-bg-alt); border: 1px solid var(--color-border); border-radius: 16px;

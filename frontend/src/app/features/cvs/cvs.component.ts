@@ -52,8 +52,25 @@ export class CvsComponent implements OnInit {
     const file = input.files?.[0];
     if (!file) return;
 
+    // Client-side pre-checks — cheap local rejections before we hit the server
+    // and before S3 silently rejects a mismatched content-type / oversize file.
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      this.uploadError.set('Only PDF files are supported.');
+      input.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.uploadError.set('File too large. Maximum size is 5 MB.');
+      input.value = '';
+      return;
+    }
+
     this.isUploading.set(true);
     this.uploadError.set('');
+
+    // 60-second cap on the S3 PUT. On a dead connection fetch() otherwise
+    // hangs forever and the spinner never resets.
+    const S3_UPLOAD_TIMEOUT_MS = 60_000;
 
     try {
       const urlRes = await this.http
@@ -66,11 +83,26 @@ export class CvsComponent implements OnInit {
       if (!urlRes) throw new Error('Failed to get upload URL');
 
       const ext = file.name.split('.').pop()?.toLowerCase() ?? 'pdf';
-      await fetch(urlRes.upload_url, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': `application/${ext}` },
-      });
+
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), S3_UPLOAD_TIMEOUT_MS);
+      let s3Response: Response;
+      try {
+        s3Response = await fetch(urlRes.upload_url, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': `application/${ext}` },
+          signal: abort.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      // fetch() resolves even on 4xx/5xx — we have to check ok ourselves or
+      // a failed S3 upload silently moves on to /confirm with a missing object.
+      if (!s3Response.ok) {
+        throw new Error(`Upload to storage failed (${s3Response.status}).`);
+      }
 
       await this.http
         .post(`${this.api}/confirm`, {
@@ -82,7 +114,11 @@ export class CvsComponent implements OnInit {
 
       this.loadCvs();
     } catch (err: any) {
-      this.uploadError.set(err?.error?.detail ?? 'Upload failed. Please try again.');
+      if (err?.name === 'AbortError') {
+        this.uploadError.set('Upload timed out. Check your connection and try again.');
+      } else {
+        this.uploadError.set(err?.error?.detail ?? err?.message ?? 'Upload failed. Please try again.');
+      }
     } finally {
       this.isUploading.set(false);
       input.value = '';
@@ -92,6 +128,9 @@ export class CvsComponent implements OnInit {
   activateCv(cv: CvItem): void {
     this.http.put(`${this.api}/${cv.id}/activate`, {}).subscribe({
       next: () => this.loadCvs(),
+      error: (err) => {
+        this.uploadError.set(err.error?.detail ?? 'Failed to activate CV.');
+      },
     });
   }
 
@@ -99,6 +138,9 @@ export class CvsComponent implements OnInit {
     if (!confirm(`Delete "${cv.filename}"?`)) return;
     this.http.delete(`${this.api}/${cv.id}`).subscribe({
       next: () => this.loadCvs(),
+      error: (err) => {
+        this.uploadError.set(err.error?.detail ?? 'Failed to delete CV.');
+      },
     });
   }
 

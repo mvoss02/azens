@@ -7,6 +7,10 @@
     <p class="page-sub">Manage knowledge drill questions.</p>
   </div>
 
+  @if (listError()) {
+    <p class="form-error" style="margin-bottom: var(--space-4)">{{ listError() }}</p>
+  }
+
   @if (isLoading()) {
     <p class="empty">Loading...</p>
   } @else if (questions().length === 0) {
@@ -89,9 +93,15 @@
           </select>
         </div>
 
+        @if (saveError()) {
+          <p class="form-error">{{ saveError() }}</p>
+        }
+
         <div class="form-actions">
-          <button type="button" class="btn btn-ghost" (click)="closeForm()">Cancel</button>
-          <button type="submit" class="btn btn-primary" [disabled]="form.invalid">Save</button>
+          <button type="button" class="btn btn-ghost" (click)="closeForm()" [disabled]="isSaving()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="form.invalid || isSaving()">
+            {{ isSaving() ? 'Saving...' : 'Save' }}
+          </button>
         </div>
       </form>
     </div>

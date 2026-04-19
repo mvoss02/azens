@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     # AUTH
     access_token_expire_minutes: int = 30  # min
+    verification_token_ttl_hours: int = 24
+    resend_verification_cooldown_seconds: int = 60
 
     # GOOGLE AUTH
     google_client_id: str

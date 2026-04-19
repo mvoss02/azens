@@ -1,0 +1,99 @@
+/* Warm ochre strip pinned to the top of shell-main. Uses ochre rather than
+   the error red — unverified is a nudge, not a blocker. */
+.verify-banner {
+  background: color-mix(in srgb, var(--color-ochre) 28%, var(--color-bg-alt));
+  border: 1px solid color-mix(in srgb, var(--color-ochre) 55%, transparent);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: var(--space-6);
+}
+
+.verify-banner-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.verify-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 99px;
+  background: var(--color-ochre);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.verify-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.verify-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.verify-hint {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+
+.verify-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.verify-status {
+  font-size: 12px;
+  color: var(--color-success);
+}
+
+.verify-status.is-error {
+  color: var(--color-error);
+}
+
+.verify-btn {
+  background: var(--color-ink);
+  color: var(--color-bg);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.verify-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--color-text-muted);
+}
+
+.verify-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.verify-dismiss {
+  color: var(--color-text-faint);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.verify-dismiss:hover {
+  color: var(--color-text);
+  background: rgba(21, 19, 17, 0.06);
+}

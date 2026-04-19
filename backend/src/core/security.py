@@ -15,10 +15,15 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def verify_password(password: str, hashed: str) -> bool:
+def verify_password(password: str, hashed: str | None) -> bool:
     """
     Login calls this — checks if the password matches.
     """
+    # OAuth-only users have no password hash. Return False (= "no match")
+    # instead of crashing on None.encode().
+    if not isinstance(hashed, str):
+        return False
+          
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 

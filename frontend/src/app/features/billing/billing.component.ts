@@ -72,10 +72,20 @@ export class BillingComponent implements OnInit {
   constructor(private http: HttpClient, private route: ActivatedRoute) {}
 
   ngOnInit(): void {
-    if (this.route.snapshot.queryParamMap.get('success') === 'true') {
+    const success = this.route.snapshot.queryParamMap.get('success') === 'true';
+    if (success) {
       this.successMessage.set('Payment successful! Your plan is now active.');
+      // The Stripe webhook may not have landed yet when the user returns here,
+      // so retry the subscription fetch a few times until we see an active sub.
+      // Give up after ~5s and just show whatever we've got.
+      this.loadSubscriptionWithRetry();
+      return;
     }
 
+    this.loadSubscription();
+  }
+
+  private loadSubscription(): void {
     this.http.get<Subscription | null>(`${this.api}/subscription`).subscribe({
       next: (sub) => {
         this.subscription.set(sub);
@@ -95,6 +105,36 @@ export class BillingComponent implements OnInit {
       },
       error: () => this.isLoading.set(false),
     });
+  }
+
+  private loadSubscriptionWithRetry(): void {
+    // Poll up to 4 times with a 1.5s gap. If the webhook lands we stop early;
+    // if it never does, we settle on whatever the last call returned.
+    const maxAttempts = 4;
+    const attempt = (n: number) => {
+      this.http.get<Subscription | null>(`${this.api}/subscription`).subscribe({
+        next: (sub) => {
+          this.subscription.set(sub);
+          if (sub && sub.is_active) {
+            this.isLoading.set(false);
+            return;
+          }
+          if (n < maxAttempts) {
+            setTimeout(() => attempt(n + 1), 1500);
+          } else {
+            this.isLoading.set(false);
+          }
+        },
+        error: () => {
+          if (n < maxAttempts) {
+            setTimeout(() => attempt(n + 1), 1500);
+          } else {
+            this.isLoading.set(false);
+          }
+        },
+      });
+    };
+    attempt(1);
   }
 
   toggleBilling(): void {

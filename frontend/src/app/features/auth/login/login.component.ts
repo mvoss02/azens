@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthLayoutComponent } from '../../../shared/components/auth-layout/auth-layout.component';
 import { AuthService } from '../../../core/auth/auth.service';
 import { environment } from '../../../../environments/environment';
@@ -16,18 +16,25 @@ import { environment } from '../../../../environments/environment';
 export class LoginComponent {
   form: FormGroup;
   isLoading = signal(false);
+  oauthLoading = signal<'google' | 'linkedin' | null>(null);
   errorMessage = signal('');
 
   constructor(
     private fb: FormBuilder,
     private auth: AuthService,
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
   ) {
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', Validators.required],
     });
+
+    // Surface OAuth errors bounced back from the callback component.
+    if (this.route.snapshot.queryParamMap.get('error') === 'oauth_failed') {
+      this.errorMessage.set('Sign-in via Google/LinkedIn failed. Please try again.');
+    }
   }
 
   onSubmit(): void {
@@ -35,7 +42,10 @@ export class LoginComponent {
     this.isLoading.set(true);
     this.errorMessage.set('');
 
-    this.auth.login(this.form.getRawValue()).subscribe({
+    const raw = this.form.getRawValue();
+    const payload = { email: (raw.email ?? '').trim(), password: raw.password };
+
+    this.auth.login(payload).subscribe({
       next: () => this.router.navigate(['/app/dashboard']),
       error: (err) => {
         this.errorMessage.set(err.error?.detail ?? 'Login failed. Please try again.');
@@ -45,14 +55,25 @@ export class LoginComponent {
   }
 
   loginWithGoogle(): void {
-    this.http.get<{ redirect_url: string }>(`${environment.apiUrl}/auth/google`).subscribe({
-      next: (res) => window.location.href = res.redirect_url,
-    });
+    this.startOAuth('google', `${environment.apiUrl}/auth/google`);
   }
 
   loginWithLinkedIn(): void {
-    this.http.get<{ redirect_url: string }>(`${environment.apiUrl}/auth/linkedin`).subscribe({
-      next: (res) => window.location.href = res.redirect_url,
+    this.startOAuth('linkedin', `${environment.apiUrl}/auth/linkedin`);
+  }
+
+  private startOAuth(provider: 'google' | 'linkedin', endpoint: string): void {
+    if (this.oauthLoading()) return;
+    this.oauthLoading.set(provider);
+    this.errorMessage.set('');
+    this.http.get<{ redirect_url: string }>(endpoint).subscribe({
+      next: (res) => {
+        window.location.href = res.redirect_url;
+      },
+      error: () => {
+        this.errorMessage.set('Could not start the sign-in flow. Please try again.');
+        this.oauthLoading.set(null);
+      },
     });
   }
 

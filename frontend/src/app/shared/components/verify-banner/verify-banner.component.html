@@ -1,0 +1,36 @@
+@if (isVisible()) {
+  <div class="verify-banner" role="status">
+    <div class="verify-banner-inner">
+      <span class="verify-icon" aria-hidden="true">!</span>
+      <div class="verify-text">
+        <strong>Verify your email</strong>
+        <span class="verify-hint">
+          Sessions and CV uploads are locked until you confirm your email.
+        </span>
+      </div>
+
+      <div class="verify-actions">
+        @if (statusMessage(); as msg) {
+          <span class="verify-status" [class.is-error]="msg.kind === 'error'">
+            {{ msg.text }}
+          </span>
+        }
+        <button
+          type="button"
+          class="verify-btn"
+          (click)="resend()"
+          [disabled]="isSending()"
+        >
+          {{ isSending() ? 'Sending...' : 'Resend email' }}
+        </button>
+        <button
+          type="button"
+          class="verify-dismiss"
+          (click)="dismiss()"
+          aria-label="Dismiss"
+          title="Dismiss"
+        >×</button>
+      </div>
+    </div>
+  </div>
+}
