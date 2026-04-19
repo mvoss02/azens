@@ -127,8 +127,143 @@
   font-weight: 600;
 }
 
+/* ── Mobile collapse (hamburger + sheet) ──────────── */
+
+/* Hidden on desktop. */
+.mobile-menu-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.mobile-menu-btn:hover {
+  background: rgba(21, 19, 17, 0.05);
+}
+
+.hamburger-line {
+  display: block;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 2px;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+/* Morph to X when sheet is open — same affordance as the app-shell. */
+.mobile-menu-btn.is-open .hamburger-line:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.mobile-menu-btn.is-open .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+.mobile-menu-btn.is-open .hamburger-line:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* The sheet itself — full-width, attached to the bottom of the nav bar.
+   Uses the same frosted-glass palette so it reads as one surface. */
+.mobile-sheet {
+  display: none;
+  padding: 18px 24px 24px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+  animation: slide-down 0.18s ease-out;
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-sheet-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mobile-sheet-section:last-child {
+  border-bottom: none;
+}
+
+.mobile-sheet-link {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.mobile-sheet-link:hover {
+  background: rgba(21, 19, 17, 0.05);
+}
+
+.mobile-sheet-btn {
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+}
+
+.mobile-sheet-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+  padding: 0 12px 8px;
+}
+
+.mobile-sheet-lang-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.mobile-sheet-lang {
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-alt);
+}
+
+.mobile-sheet-lang.active {
+  background: var(--color-amber);
+  color: var(--color-ink);
+  border-color: var(--color-amber);
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
-  .nav-center {
-    display: none;
+  /* Hide the desktop inline items. The sheet below holds all of them. */
+  .nav-center { display: none; }
+  .nav-right { display: none; }
+
+  /* Show the hamburger + sheet. */
+  .mobile-menu-btn { display: flex; }
+  .mobile-sheet { display: block; }
+
+  /* Keep the inner row comfortable on narrow screens. */
+  .nav-inner {
+    padding: 12px 16px;
   }
 }

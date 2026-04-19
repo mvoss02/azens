@@ -55,7 +55,7 @@
     <div class="sub-card">
       <div class="sub-plan">
         <span class="mono" style="font-size:11px;color:var(--color-text-faint)">CURRENT PLAN</span>
-        <span class="sub-name">{{ subscription().plan }}</span>
+        <span class="sub-name">{{ planLabel(subscription().plan) }}</span>
       </div>
       <a routerLink="/app/billing" class="btn btn-ghost" style="font-size:13px">Manage</a>
     </div>

@@ -204,7 +204,7 @@
 
 .pc-line {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(232, 225, 206, 0.08);
@@ -216,7 +216,7 @@
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: rgba(232, 225, 206, 0.55);
-  flex: 0 0 56px;
+  flex: 0 0 38px;
   padding-top: 2px;
   letter-spacing: 0.04em;
 }
@@ -521,6 +521,20 @@
   margin: 0 auto;
 }
 
+/* Dark-bg variant — scoped to .feature.ink so the dashed border, label
+   pill, and body text all flip to cream/ochre on the ink gradient. */
+.feature.ink .coming-soon-mock {
+  background: rgba(232, 225, 206, 0.04);
+  border-color: rgba(232, 225, 206, 0.18);
+}
+.feature.ink .coming-soon-label {
+  color: var(--color-ochre);
+  background: rgba(224, 182, 74, 0.15);
+}
+.feature.ink .coming-soon-overlay p {
+  color: rgba(232, 225, 206, 0.65);
+}
+
 /* ── SECTION HEADS ────────────────────────────────── */
 
 .section-head {
@@ -567,6 +581,18 @@
 .feature.amber { background: var(--color-amber); color: #1a1107; }
 .feature.forest { background: var(--color-forest); color: #E8E1CE; }
 .feature.lilac { background: var(--color-lilac); color: #2a1f3e; }
+/* Matches .product-card-drill from the hero so the "Knowledge Drill" */
+/* tile reads as the same visual family. */
+.feature.navy {
+  background: linear-gradient(145deg, #1a1f2e, #242d3f);
+  color: #E8E1CE;
+}
+/* Matches .product-card-case from the hero so the "Coming Soon" */
+/* tile reads as the same visual family. */
+.feature.ink {
+  background: linear-gradient(145deg, var(--color-ink), #2a2520);
+  color: #E8E1CE;
+}
 
 .feature::after {
   content: "";
@@ -581,6 +607,8 @@
 .feature.amber::after { right: -160px; bottom: -200px; background: radial-gradient(circle, rgba(255, 220, 170, 0.6), transparent 65%); }
 .feature.forest::after { left: -160px; top: -200px; background: radial-gradient(circle, rgba(232, 122, 58, 0.35), transparent 65%); }
 .feature.lilac::after { right: -160px; top: -200px; background: radial-gradient(circle, rgba(255, 255, 255, 0.5), transparent 65%); }
+.feature.navy::after { left: -160px; top: -200px; background: radial-gradient(circle, rgba(100, 160, 255, 0.22), transparent 65%); }
+.feature.ink::after { right: -160px; bottom: -200px; background: radial-gradient(circle, rgba(224, 182, 74, 0.22), transparent 65%); }
 
 .feature > * { position: relative; z-index: 1; }
 
@@ -629,6 +657,10 @@
   color: var(--color-text);
   padding: 22px;
   box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.35);
+  /* Without this the mock's intrinsic content width (e.g. a long
+     non-breakable filename) would override the grid column track and
+     push the whole feature block wider than the viewport on mobile. */
+  min-width: 0;
 }
 
 .mock-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
@@ -643,6 +675,13 @@
   overflow: hidden;
   border: 1px solid rgba(232, 225, 206, 0.1);
   box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.5);
+}
+
+/* When the mock-voice sits inside the navy feature tile, retune its bg
+   to a darker shade of the same blue family so it reads as a nested
+   card rather than clashing with the feature gradient. */
+.feature.navy .mock-voice {
+  background: #12172a;
 }
 .mock-voice .mock-head .title { color: rgba(232, 225, 206, 0.6); }
 .mock-voice .mock-head .dots span { background: rgba(232, 225, 206, 0.25); }
@@ -727,8 +766,14 @@
 
 .ficon.xls { background: linear-gradient(135deg, #e8f0e4, #d4e0c8); color: var(--color-forest); }
 
-.fmeta { flex: 1; font-size: 13px; }
-.fmeta .fname { font-weight: 500; color: var(--color-text); }
+.fmeta { flex: 1; min-width: 0; font-size: 13px; }
+.fmeta .fname {
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .fmeta .fsub { color: var(--color-text-faint); font-size: 11.5px; margin-top: 2px; }
 
 .progress {
@@ -1293,4 +1338,61 @@
   .faq { grid-template-columns: 1fr; }
   .final-cta { padding: 32px; }
   .report-strengths { grid-template-columns: 1fr; }
+}
+
+/* ── Narrow viewport tune — tighten feature blocks on phones ─────── */
+
+@media (max-width: 768px) {
+  /* Tighter outer container so chunky horizontal paddings don't eat
+     the whole viewport. */
+  .feature {
+    padding: 22px 20px;
+    border-radius: 18px;
+    gap: 24px;
+    margin-bottom: 12px;
+  }
+
+  /* Shrink the decorative blur circles — at 480×480 they were large
+     enough to overlap the text content on narrow viewports. */
+  .feature::after {
+    width: 280px;
+    height: 280px;
+    opacity: 0.3;
+  }
+  .feature.amber::after { right: -100px; bottom: -120px; }
+  .feature.forest::after { left: -100px; top: -120px; }
+  .feature.lilac::after { right: -100px; top: -120px; }
+  .feature.navy::after { left: -100px; top: -120px; }
+  .feature.ink::after { right: -100px; bottom: -120px; }
+
+  /* Typography ladder — numbers and headings were desktop-sized.
+     The clamp() on .feature-text h3 still has min=32px which felt
+     chunky on a phone; we drop it further. */
+  .feature-text .num { font-size: 34px; }
+  .feature-text h3 {
+    font-size: clamp(24px, 6.5vw, 32px);
+    margin: 8px 0 12px;
+  }
+  .feature-text p { font-size: 14.5px; margin-bottom: 14px; }
+  .feature-text ul { margin-bottom: 18px; font-size: 14px; }
+
+  /* Mock cards — tighter padding so content has room to breathe. */
+  .mock { padding: 16px; border-radius: 14px; }
+  .mock-head { margin-bottom: 12px; }
+
+  /* Voice mock: orb + lines were set up for wider columns. Scale down
+     the orb and let the lines take the remaining width without wrapping
+     oddly. */
+  .mock-voice-body { gap: 12px; padding: 10px 0; }
+  .mini-orb { width: 54px; height: 54px; }
+  .mock-voice-lines .pc-line { font-size: 12px; }
+  .mock-voice-foot { font-size: 10px; }
+
+  /* CV mock: drop zone and file row. */
+  .cv-drop { padding: 16px; }
+  .cv-drop h4 { font-size: 20px; }
+  .cv-drop p { font-size: 12.5px; margin-bottom: 10px; }
+  .cv-file { padding: 10px 12px; gap: 10px; }
+  .progress { width: 60px; }
+  .fmeta { font-size: 12.5px; }
 }

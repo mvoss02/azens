@@ -13,6 +13,8 @@ import { I18nService, LANGUAGES, AppLanguage } from '../../../core/i18n/i18n.ser
 export class NavComponent {
   readonly languages = LANGUAGES;
   langMenuOpen = signal(false);
+  // Mobile collapse. Desktop ignores — CSS hides the hamburger + sheet.
+  mobileMenuOpen = signal(false);
 
   constructor(public auth: AuthService, public i18n: I18nService) {}
 
@@ -21,6 +23,9 @@ export class NavComponent {
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    // Close mobile sheet after the user picks a destination — otherwise
+    // they'd land at the section with the menu still covering it.
+    this.mobileMenuOpen.set(false);
   }
 
   toggleLangMenu() {
@@ -30,5 +35,16 @@ export class NavComponent {
   selectLang(code: AppLanguage) {
     this.i18n.setLang(code);
     this.langMenuOpen.set(false);
+  }
+
+  toggleMobileMenu() {
+    this.mobileMenuOpen.update(v => !v);
+    // Prevent a stray language dropdown from being visible underneath
+    // the sheet. Small tidy-up.
+    this.langMenuOpen.set(false);
+  }
+
+  closeMobileMenu() {
+    this.mobileMenuOpen.set(false);
   }
 }

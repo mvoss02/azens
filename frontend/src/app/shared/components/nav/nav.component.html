@@ -1,10 +1,11 @@
 <div class="nav">
   <div class="nav-inner">
-    <a routerLink="/" class="logo">
+    <a routerLink="/" class="logo" (click)="closeMobileMenu()">
       <span class="logo-mark">𝒜</span>
       <span>Azens</span>
     </a>
 
+    <!-- Desktop — inline section links. Hidden below 768px. -->
     <div class="nav-center">
       <a (click)="scrollTo('product')">{{ i18n.t('nav.product') }}</a>
       <a (click)="scrollTo('testimonials')">{{ i18n.t('nav.testimonials') }}</a>
@@ -12,6 +13,7 @@
       <a (click)="scrollTo('faq')">{{ i18n.t('nav.faq') }}</a>
     </div>
 
+    <!-- Desktop — language picker + auth buttons. Hidden below 768px. -->
     <div class="nav-right">
       <!-- Language picker -->
       <div class="lang-picker">
@@ -40,5 +42,63 @@
         <button class="btn btn-ghost" (click)="auth.logout()">{{ i18n.t('nav.logout') }}</button>
       }
     </div>
+
+    <!-- Mobile-only hamburger. Morphs to X when sheet is open. -->
+    <button
+      type="button"
+      class="mobile-menu-btn"
+      [class.is-open]="mobileMenuOpen()"
+      [attr.aria-expanded]="mobileMenuOpen()"
+      [attr.aria-label]="mobileMenuOpen() ? 'Close menu' : 'Open menu'"
+      (click)="toggleMobileMenu()">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
   </div>
+
+  <!-- Mobile sheet. Rendered below the nav bar when open, full-width,
+       stacks the nav items + auth buttons + language selector. -->
+  @if (mobileMenuOpen()) {
+    <div class="mobile-sheet">
+      <div class="mobile-sheet-section">
+        <a class="mobile-sheet-link" (click)="scrollTo('product')">{{ i18n.t('nav.product') }}</a>
+        <a class="mobile-sheet-link" (click)="scrollTo('testimonials')">{{ i18n.t('nav.testimonials') }}</a>
+        <a class="mobile-sheet-link" (click)="scrollTo('pricing')">{{ i18n.t('nav.pricing') }}</a>
+        <a class="mobile-sheet-link" (click)="scrollTo('faq')">{{ i18n.t('nav.faq') }}</a>
+      </div>
+
+      <div class="mobile-sheet-section">
+        @if (!auth.isLoggedIn()) {
+          <a class="btn btn-ghost mobile-sheet-btn" routerLink="/auth/login" (click)="closeMobileMenu()">
+            {{ i18n.t('nav.signin') }}
+          </a>
+          <a class="btn btn-primary mobile-sheet-btn" routerLink="/auth/signup" (click)="closeMobileMenu()">
+            {{ i18n.t('nav.getstarted') }} <span>→</span>
+          </a>
+        } @else {
+          <a class="btn btn-ghost mobile-sheet-btn" routerLink="/app/dashboard" (click)="closeMobileMenu()">
+            {{ i18n.t('nav.dashboard') }}
+          </a>
+          <button class="btn btn-ghost mobile-sheet-btn" (click)="auth.logout(); closeMobileMenu()">
+            {{ i18n.t('nav.logout') }}
+          </button>
+        }
+      </div>
+
+      <div class="mobile-sheet-section mobile-sheet-langs">
+        <span class="mobile-sheet-label">Language</span>
+        <div class="mobile-sheet-lang-row">
+          @for (lang of languages; track lang.code) {
+            <button
+              class="lang-option mobile-sheet-lang"
+              [class.active]="lang.code === i18n.lang()"
+              (click)="selectLang(lang.code); closeMobileMenu()">
+              {{ lang.label }}
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  }
 </div>

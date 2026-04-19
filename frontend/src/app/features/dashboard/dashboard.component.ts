@@ -53,4 +53,14 @@ export class DashboardComponent implements OnInit {
   sessionTypeLabel(type: string): string {
     return { cv_screen: 'CV Screen', knowledge_drill: 'Knowledge Drill', case_study: 'Case Study' }[type] ?? type;
   }
+
+  // Backend sends the plan as a snake_case slug (e.g. 'managing_director').
+  // Mirror billing.planLabel — render as a Title Cased string.
+  planLabel(plan: string | null | undefined): string {
+    if (!plan) return '—';
+    return plan
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
 }
