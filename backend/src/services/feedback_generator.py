@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from core.config import settings as settings_feedback
 from core.database import SessionLocal
-from models.enums import SeniorityLevel, SessionType
+from models.enums import FeedbackStatus, SeniorityLevel, SessionType
 from models.feedback import Feedback
 from models.session import Session
 from models.transcript import Transcript
@@ -77,15 +77,9 @@ async def _generate_feedback(
 
 
 async def generate_and_save_feedback(session_id: UUID):
-    # Runs as a FastAPI BackgroundTask, so any uncaught exception vanishes
-    # into the task runner's logs with no stack trace. Broad try/except +
-    # logger.exception below captures the real failure reason.
-    #
-    # TODO (UX): on failure the user's /feedback/{id} endpoint 404s forever
-    # with no indication why. Proper fix is a feedback_status column on
-    # Session (PENDING | GENERATED | FAILED | SKIPPED) surfaced via the
-    # session response so the frontend can show "Feedback generation
-    # failed — retry." Tracked separately.
+    # Runs as a FastAPI BackgroundTask. Every outcome flips
+    # `Session.feedback_status` so the frontend can distinguish
+    # "still generating" from "we tried and it failed" without refreshing.
     async with SessionLocal() as db:
         # 1. Load session
         result = await db.execute(select(Session).where(Session.id == session_id))
@@ -93,7 +87,7 @@ async def generate_and_save_feedback(session_id: UUID):
 
         if not curr_sess:
             # Shouldn't happen — session row was just created before /end fired.
-            # Treat as a bug signal, not a silent skip.
+            # No session means there's nothing to flip a status on, so just log.
             logger.error('Session %s not found, skipping feedback', session_id)
             return
 
@@ -106,10 +100,13 @@ async def generate_and_save_feedback(session_id: UUID):
         transcripts = result.scalars().all()
 
         if not transcripts:
-            # User likely disconnected before saying anything — recoverable,
-            # but worth noticing in case it starts happening often.
+            # User likely disconnected before saying anything — mark SKIPPED
+            # so the frontend can show "no transcript recorded" rather than
+            # spinning on "Generating…" forever.
+            curr_sess.feedback_status = FeedbackStatus.SKIPPED
+            await db.commit()
             logger.warning(
-                'No transcript for session %s, skipping feedback', session_id
+                'No transcript for session %s — feedback_status=SKIPPED', session_id
             )
             return
 
@@ -125,23 +122,29 @@ async def generate_and_save_feedback(session_id: UUID):
                 questions_asked=None,
             )  # TODO: Implement question tracking
 
-            # 4. Create Feedback record, save
+            # 4. Create Feedback record, flip status, commit atomically
             new_feedback = Feedback(
                 session_id=session_id,
                 feedback_type=curr_sess.session_type,
                 data=llm_result.model_dump(),  # entire Pydantic -> JSONB
             )
-
             db.add(new_feedback)
-            await db.flush()
+            curr_sess.feedback_status = FeedbackStatus.GENERATED
             await db.commit()
         except Exception:
-            # Broad catch on purpose: OpenAI errors, httpx timeouts, Pydantic
-            # validation on the LLM response, DB integrity errors — all get
-            # logged with a stack trace and swallowed. logger.exception
-            # auto-captures the traceback; rollback clears any pending ORM
-            # state so the session object stays usable if we ever add retry.
+            # Roll back any pending writes from the happy path (e.g. half-
+            # attached Feedback row), then flip status to FAILED in a fresh
+            # transaction so the frontend stops polling and can show retry.
+            # Re-query the session because after rollback the ORM object is
+            # expired and attribute access would re-hit the DB anyway.
             await db.rollback()
             logger.exception(
                 'Feedback generation failed for session %s', session_id
             )
+            result = await db.execute(
+                select(Session).where(Session.id == session_id)
+            )
+            sess = result.scalar_one_or_none()
+            if sess is not None:
+                sess.feedback_status = FeedbackStatus.FAILED
+                await db.commit()

@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from models.enums import (
+    FeedbackStatus,
     Language,
     SeniorityLevel,
     SessionDuration,
@@ -52,6 +53,13 @@ class SessionResponse(BaseModel):
     language: Language
     duration_minutes: SessionDuration
     status: SessionStatus
+    feedback_status: FeedbackStatus
     started_at: datetime | None
     ended_at: datetime | None
     created_at: datetime
+
+    # Present for ACTIVE sessions owned by the caller so the session-room
+    # component can (re)join the Daily room on refresh / reconnect. Null for
+    # ended or other users' sessions. Token is freshly minted on each read.
+    daily_room_url: str | None = None
+    daily_token: str | None = None

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 from models.enums import (
+    FeedbackStatus,
     Language,
     SeniorityLevel,
     SessionDuration,
@@ -32,6 +33,13 @@ class Session(Base):
     session_type: Mapped[SessionType] = mapped_column(Enum(SessionType), nullable=False)
     status: Mapped[SessionStatus] = mapped_column(
         Enum(SessionStatus), nullable=False, default=SessionStatus.PENDING
+    )
+    # Lifecycle of the async feedback generation task. Distinct from
+    # SessionStatus because feedback can still be PENDING after the session
+    # itself has COMPLETED. Frontend polls this to know when to render the
+    # report vs keep showing "Generating…".
+    feedback_status: Mapped[FeedbackStatus] = mapped_column(
+        Enum(FeedbackStatus), nullable=False, default=FeedbackStatus.PENDING
     )
 
     # Snapshot of user's settings at time of session — user may change these later

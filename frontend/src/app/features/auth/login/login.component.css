@@ -21,9 +21,23 @@
   transition: 0.2s ease;
 }
 
-.oauth-btn:hover {
+.oauth-btn:hover:not(:disabled) {
   background: var(--color-bg);
   border-color: var(--color-text-faint);
+}
+
+/* When ANY provider is connecting, every OAuth button gets :disabled so a
+   user can't start a second flow mid-redirect. The active provider ALSO
+   gets .loading — the more specific rule below overrides the dimmer
+   disabled look so the user can see which button they clicked. */
+.oauth-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.oauth-btn.loading {
+  opacity: 0.85;
+  cursor: progress;
 }
 
 .divider {

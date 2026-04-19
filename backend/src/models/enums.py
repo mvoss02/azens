@@ -50,6 +50,13 @@ class SessionStatus(enum.Enum):
     ERROR = 'error'  # something went wrong
 
 
+class FeedbackStatus(enum.Enum):
+    PENDING = 'pending'
+    GENERATED = 'generated'
+    FAILED = 'failed'
+    SKIPPED = 'skipped'
+
+
 class SessionDuration(enum.Enum):
     SHORT = 15
     MEDIUM = 30

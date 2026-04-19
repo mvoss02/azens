@@ -6,7 +6,13 @@
   border: 1px solid var(--color-border); background: var(--color-bg-alt);
   font-size: 14px; font-weight: 500; color: var(--color-text); cursor: pointer; transition: 0.2s ease;
 }
-.oauth-btn:hover { background: var(--color-bg); border-color: var(--color-text-faint); }
+.oauth-btn:hover:not(:disabled) { background: var(--color-bg); border-color: var(--color-text-faint); }
+
+/* Disabled = any OAuth flow in flight (prevents double-dispatch).
+   .loading = this specific button is the active one — kept brighter
+   than :disabled so the user can see which they clicked. */
+.oauth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.oauth-btn.loading { opacity: 0.85; cursor: progress; }
 
 .divider { display: flex; align-items: center; gap: 14px; margin: 22px 0; color: var(--color-text-faint); font-size: 13px; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--color-border); }

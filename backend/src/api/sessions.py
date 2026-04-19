@@ -1,5 +1,6 @@
 import asyncio
-from datetime import UTC, datetime
+import logging
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
@@ -25,6 +26,8 @@ from services.cv_parser import parse_cv_from_s3
 from services.daily_service import create_meeting_token, create_room
 from services.feedback_generator import generate_and_save_feedback
 from services.pipecat_service import start_bot_session
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -219,3 +222,76 @@ async def get_sessions(
 
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.get(
+    '/{session_id}', response_model=SessionResponse, status_code=status.HTTP_200_OK
+)
+async def get_session(
+    session_id: UUID,
+    background_tasks: BackgroundTasks,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> SessionResponse:
+    # Owner-only read. Returns the Daily room URL + a freshly-minted
+    # meeting token for ACTIVE sessions so the frontend can (re)join —
+    # handles both page-refresh resilience and short network drops.
+    #
+    # Also runs the zombie check: if an ACTIVE session has blown past its
+    # duration + grace window, we force-end it and schedule feedback here.
+    # That way the first read after the bot has walked away is the one
+    # that cleans up — no separate cron needed.
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id, Session.user_id == user_id
+        )
+    )
+    curr_sess = result.scalar_one_or_none()
+
+    if not curr_sess:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
+
+    if (
+        curr_sess.status == SessionStatus.ACTIVE
+        and curr_sess.started_at is not None
+        and curr_sess.duration_minutes is not None
+    ):
+        deadline = curr_sess.started_at + timedelta(
+            seconds=curr_sess.duration_minutes.value * 60
+            + settings_sessions.zombie_grace_seconds
+        )
+        if datetime.now(UTC) > deadline:
+            # Zombie — the bot is long gone, the user is probably gone too.
+            # Flip to COMPLETED and kick off feedback so the frontend sees
+            # feedback_status move from PENDING → GENERATED/FAILED/SKIPPED
+            # on subsequent polls without needing a manual /end call.
+            curr_sess.status = SessionStatus.COMPLETED
+            curr_sess.ended_at = datetime.now(UTC)
+            background_tasks.add_task(
+                generate_and_save_feedback, curr_sess.id
+            )
+            logger.info(
+                'Session %s past zombie grace — force-ended', curr_sess.id
+            )
+
+    # Mint a fresh Daily token if the session is (still) ACTIVE. Daily
+    # tokens expire; the one stored at /start is only valid until the room
+    # expires. For rejoin we want a clean short-lived token. If Daily is
+    # unreachable we log and leave the old token — frontend will surface
+    # the connection failure if that token has also expired.
+    if curr_sess.status == SessionStatus.ACTIVE and curr_sess.daily_room_name:
+        try:
+            curr_sess.daily_token = await create_meeting_token(
+                room_name=curr_sess.daily_room_name,
+                user_name=str(user_id),
+            )
+        except Exception as e:
+            logger.warning(
+                'Could not mint fresh Daily token for session %s: %s',
+                curr_sess.id,
+                e,
+            )
+
+    await db.flush()
+    await db.refresh(curr_sess)
+    return curr_sess
