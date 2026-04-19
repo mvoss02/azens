@@ -1,11 +1,12 @@
 import asyncio
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,8 @@ from schemas.auth import (
 )
 from services.email import send_password_reset_email, send_verification_email
 from services.s3 import delete_object
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -156,55 +159,104 @@ async def google():
 async def google_callback(
     code: str, db: AsyncSession = Depends(get_db)
 ):
+    # All failure modes below bounce the user back to /auth/login with a
+    # generic error. We don't surface Google's internal error codes to the
+    # UI — they're unhelpful to humans and sometimes leak info about the
+    # auth provider's state. The real cause is logged server-side.
+    oauth_failed_redirect = RedirectResponse(
+        url=f'{settings_auth.frontend_url}/auth/login?error=oauth_failed'
+    )
+
     # 1. Exchange code for access token
     async with httpx.AsyncClient() as client:
-        token_resp = await client.post(
-            'https://oauth2.googleapis.com/token',
-            data={
-                'client_id': settings_auth.google_client_id,
-                'client_secret': settings_auth.google_client_secret,
-                'code': code,
-                'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/google/callback',
-                'grant_type': 'authorization_code',
-            },
-            headers={'Accept': 'application/json'},
-        )
-        access_token = token_resp.json()['access_token']
+        try:
+            token_resp = await client.post(
+                'https://oauth2.googleapis.com/token',
+                data={
+                    'client_id': settings_auth.google_client_id,
+                    'client_secret': settings_auth.google_client_secret,
+                    'code': code,
+                    'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/google/callback',
+                    'grant_type': 'authorization_code',
+                },
+                headers={'Accept': 'application/json'},
+            )
+            token_resp.raise_for_status()
+            token_data = token_resp.json()
+        except httpx.HTTPError as e:
+            logger.warning('Google token exchange failed: %s', e)
+            return oauth_failed_redirect
 
-        # Step 2: Use access token to get user profile
-        profile_resp = await client.get(
-            'https://www.googleapis.com/oauth2/v2/userinfo',
-            headers={'Authorization': f'Bearer {access_token}'},
-        )
-        google_profile = profile_resp.json()
+        access_token = token_data.get('access_token')
+        if not access_token:
+            logger.warning(
+                'Google token exchange returned no access_token: %s', token_data
+            )
+            return oauth_failed_redirect
 
-    # 2. Check if user already exists in DB
+        # 2. Use access token to get user profile
+        try:
+            profile_resp = await client.get(
+                'https://www.googleapis.com/oauth2/v2/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'},
+            )
+            profile_resp.raise_for_status()
+            google_profile = profile_resp.json()
+        except httpx.HTTPError as e:
+            logger.warning('Google profile fetch failed: %s', e)
+            return oauth_failed_redirect
+
+    # Validate the fields we need. Google should always return both, but
+    # guard in case the API evolves or the response body is an error shape.
+    if not google_profile.get('id') or not google_profile.get('email'):
+        logger.warning(
+            'Google userinfo missing id or email: %s', google_profile
+        )
+        return oauth_failed_redirect
+
+    # Only trust emails Google has verified. Without this, a user with an
+    # unverified secondary email on their Google account could sign in as
+    # if we'd verified it ourselves, defeating the is_verified=True shortcut
+    # we apply to new OAuth users. Default to False on missing field.
+    # Note: Google v2 userinfo uses `verified_email` (vs `email_verified` on OIDC).
+    if not google_profile.get('verified_email', False):
+        logger.warning(
+            'Google email not verified: %s', google_profile.get('email')
+        )
+        return oauth_failed_redirect
+
+    # 3. Existing Google user → log them in
     result = await db.execute(
         select(User).where(User.google_id == google_profile['id'])
     )
-
     user = result.scalar_one_or_none()
-    if not user:
-        # Check if email already exists
-        result = await db.execute(
-            select(User).where(User.email == google_profile['email'])
+    if user:
+        token = create_access_token(str(user.id))
+        return RedirectResponse(
+            url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
         )
-        user = result.scalar_one_or_none()
 
-    if not user:
-        # Create the user
-        user = User(
-            email=google_profile['email'],
-            google_id=google_profile['id'],
-            full_name=google_profile['name'],
+    # 4. Email is already registered (password user or different OAuth provider).
+    # Refuse to silently link — forces the user to sign in the original way.
+    result = await db.execute(
+        select(User).where(User.email == google_profile['email'])
+    )
+    user = result.scalar_one_or_none()
+    if user:
+        return RedirectResponse(
+            url=f'{settings_auth.frontend_url}/auth/login?error=email_taken'
         )
-        db.add(user)
-        await db.flush()
-    elif not user.google_id:
-        # Existing user, link Google ID
-        user.google_id = google_profile['id']
 
-    # 3. Create token and redirect to frontend
+    # 5. Brand-new user → create with is_verified=True (Google already verified)
+    user = User(
+        email=google_profile['email'],
+        google_id=google_profile['id'],
+        full_name=google_profile.get('name'),
+        is_verified=True,
+    )
+    db.add(user)
+    await db.flush()
+
     token = create_access_token(str(user.id))
     return RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
@@ -229,58 +281,100 @@ async def linkedin():
 async def linkedin_callback(
     code: str, db: AsyncSession = Depends(get_db)
 ):
+    oauth_failed_redirect = RedirectResponse(
+        url=f'{settings_auth.frontend_url}/auth/login?error=oauth_failed'
+    )
+
     # 1. Exchange code for access token
     async with httpx.AsyncClient() as client:
-        token_resp = await client.post(
-            'https://www.linkedin.com/oauth/v2/accessToken',
-            data={
-                'client_id': settings_auth.linkedin_client_id,
-                'client_secret': settings_auth.linkedin_client_secret,
-                'code': code,
-                'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/linkedin/callback',
-                'grant_type': 'authorization_code',
-            },
-            headers={
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-        )
-        access_token = token_resp.json()['access_token']
+        try:
+            token_resp = await client.post(
+                'https://www.linkedin.com/oauth/v2/accessToken',
+                data={
+                    'client_id': settings_auth.linkedin_client_id,
+                    'client_secret': settings_auth.linkedin_client_secret,
+                    'code': code,
+                    'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/linkedin/callback',
+                    'grant_type': 'authorization_code',
+                },
+                headers={
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            )
+            token_resp.raise_for_status()
+            token_data = token_resp.json()
+        except httpx.HTTPError as e:
+            logger.warning('LinkedIn token exchange failed: %s', e)
+            return oauth_failed_redirect
 
-        # Step 2: Use access token to get user profile
-        profile_resp = await client.get(
-            'https://api.linkedin.com/v2/userinfo',
-            headers={'Authorization': f'Bearer {access_token}'},
-        )
-        linkedin_profile = profile_resp.json()
+        access_token = token_data.get('access_token')
+        if not access_token:
+            logger.warning(
+                'LinkedIn token exchange returned no access_token: %s', token_data
+            )
+            return oauth_failed_redirect
 
-    # 2. Check if user already exists in DB
+        # 2. Use access token to get user profile
+        try:
+            profile_resp = await client.get(
+                'https://api.linkedin.com/v2/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'},
+            )
+            profile_resp.raise_for_status()
+            linkedin_profile = profile_resp.json()
+        except httpx.HTTPError as e:
+            logger.warning('LinkedIn profile fetch failed: %s', e)
+            return oauth_failed_redirect
+
+    # LinkedIn's OIDC userinfo returns 'sub' (unique id) and 'email'. Both
+    # are required; bail if either is missing.
+    if not linkedin_profile.get('sub') or not linkedin_profile.get('email'):
+        logger.warning(
+            'LinkedIn userinfo missing sub or email: %s', linkedin_profile
+        )
+        return oauth_failed_redirect
+
+    # Only trust verified emails — same argument as the Google branch.
+    # LinkedIn OIDC uses `email_verified` (the OIDC standard field name).
+    if not linkedin_profile.get('email_verified', False):
+        logger.warning(
+            'LinkedIn email not verified: %s', linkedin_profile.get('email')
+        )
+        return oauth_failed_redirect
+
+    # 3. Existing LinkedIn user → log them in
     result = await db.execute(
         select(User).where(User.linkedin_id == linkedin_profile['sub'])
     )
-
     user = result.scalar_one_or_none()
-    if not user:
-        # Check if email already exists
-        result = await db.execute(
-            select(User).where(User.email == linkedin_profile['email'])
+    if user:
+        token = create_access_token(str(user.id))
+        return RedirectResponse(
+            url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'
         )
-        user = result.scalar_one_or_none()
 
-    if not user:
-        # Create the user
-        user = User(
-            email=linkedin_profile['email'],
-            linkedin_id=linkedin_profile['sub'],
-            full_name=linkedin_profile['name'],
+    # 4. Email is already registered (password user or different OAuth provider).
+    # Refuse to silently link — forces the user to sign in the original way.
+    result = await db.execute(
+        select(User).where(User.email == linkedin_profile['email'])
+    )
+    user = result.scalar_one_or_none()
+    if user:
+        return RedirectResponse(
+            url=f'{settings_auth.frontend_url}/auth/login?error=email_taken'
         )
-        db.add(user)
-        await db.flush()
-    elif not user.linkedin_id:
-        # Existing user, link Linkedin ID
-        user.linkedin_id = linkedin_profile['sub']
 
-    # 3. Create token and redirect to frontend
+    # 5. Brand-new user → create with is_verified=True (LinkedIn already verified)
+    user = User(
+        email=linkedin_profile['email'],
+        linkedin_id=linkedin_profile['sub'],
+        full_name=linkedin_profile.get('name'),
+        is_verified=True,
+    )
+    db.add(user)
+    await db.flush()
+
     token = create_access_token(str(user.id))
     return RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/oauth-callback#token={token}'

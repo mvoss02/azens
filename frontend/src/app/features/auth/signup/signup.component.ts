@@ -46,8 +46,13 @@ export class SignupComponent {
       { validators: passwordsMatch },
     );
 
-    if (this.route.snapshot.queryParamMap.get('error') === 'oauth_failed') {
+    const oauthError = this.route.snapshot.queryParamMap.get('error');
+    if (oauthError === 'oauth_failed') {
       this.errorMessage.set('Sign-up via Google/LinkedIn failed. Please try again.');
+    } else if (oauthError === 'email_taken') {
+      this.errorMessage.set(
+        'An account with this email already exists. Please log in instead.',
+      );
     }
   }
 

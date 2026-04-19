@@ -32,8 +32,13 @@ export class LoginComponent {
     });
 
     // Surface OAuth errors bounced back from the callback component.
-    if (this.route.snapshot.queryParamMap.get('error') === 'oauth_failed') {
+    const oauthError = this.route.snapshot.queryParamMap.get('error');
+    if (oauthError === 'oauth_failed') {
       this.errorMessage.set('Sign-in via Google/LinkedIn failed. Please try again.');
+    } else if (oauthError === 'email_taken') {
+      this.errorMessage.set(
+        'An account with this email already exists. Please sign in with your password.',
+      );
     }
   }
 
