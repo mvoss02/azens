@@ -68,3 +68,12 @@ class SessionDuration(enum.Enum):
     LONG = 45
     EXTENDED = 60
     SUPERDAY = 90
+
+
+class CVParsingStatus(enum.Enum):
+    # Tracks the lifecycle of Docling CV parsing. Parsing happens in a
+    # background task after upload (see services/cv_parser.py).
+    # 'parsed' is also the precondition for starting a CV-screen session.
+    PENDING = 'pending'
+    PARSED = 'parsed'
+    FAILED = 'failed'

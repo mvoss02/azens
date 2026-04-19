@@ -12,6 +12,7 @@ from core.config import settings as settings_sessions
 from core.database import get_db
 from models.cv import CV
 from models.enums import (
+    CVParsingStatus,
     Language,
     SeniorityLevel,
     SessionDuration,
@@ -56,14 +57,57 @@ async def start_session(
             if not target_cv:
                 raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
 
-            # Get CV from S3 and parse
+            # Parsing pipeline gating:
+            # - parsed_text present → happy path, use the cached text.
+            # - parsing_status == PENDING → the upload-time background task is
+            #   still running. Blocking the request on it would give the user
+            #   a 40-second silent wait; cleaner to 409 and let them retry
+            #   once the CV page shows "Ready."
+            # - parsing_status == FAILED → tell the user to retry from the
+            #   CV page, where they have the affordance.
+            # - anything else (e.g. legacy PARSED row with parsed_text nulled
+            #   by a manual DB mutation) → inline parse as a safety net, and
+            #   sync the status columns so the UX catches up.
             if target_cv.parsed_text:
                 parsed_cv_text = target_cv.parsed_text
-            else:
-                parsed_cv_text = await asyncio.to_thread(
-                    parse_cv_from_s3, s3_key=target_cv.s3_key
+            elif target_cv.parsing_status == CVParsingStatus.PENDING:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=(
+                        'Your CV is still being analysed. Please wait a moment '
+                        'and try again — the CV list will show "Ready" when it\'s done.'
+                    ),
                 )
-                target_cv.parsed_text = parsed_cv_text
+            elif target_cv.parsing_status == CVParsingStatus.FAILED:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        'Your CV failed to parse. Open the CV page and click '
+                        '"Retry", or re-upload the file.'
+                    ),
+                )
+            else:
+                # Safety-net inline parse for status drift (status=PARSED but
+                # parsed_text somehow cleared). Mirrors the background task's
+                # status-update semantics so the columns stay consistent.
+                try:
+                    parsed_cv_text = await asyncio.to_thread(
+                        parse_cv_from_s3, s3_key=target_cv.s3_key
+                    )
+                    target_cv.parsed_text = parsed_cv_text
+                    target_cv.parsing_status = CVParsingStatus.PARSED
+                    target_cv.parsing_error = None
+                except Exception as exc:
+                    logger.exception(
+                        'session_start inline parse failed cv_id=%s', target_cv.id
+                    )
+                    target_cv.parsing_status = CVParsingStatus.FAILED
+                    target_cv.parsing_error = repr(exc)[:500]
+                    await db.commit()
+                    raise HTTPException(
+                        status.HTTP_502_BAD_GATEWAY,
+                        detail='Failed to parse CV. Please retry from the CV page.',
+                    ) from exc
 
     # Check count of sessions taken (this month)
     first_of_month = datetime.now(UTC).replace(

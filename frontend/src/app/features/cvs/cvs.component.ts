@@ -1,13 +1,17 @@
-import { Component, OnInit, signal, computed, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
+
+type ParsingStatus = 'pending' | 'parsed' | 'failed';
 
 interface CvItem {
   id: string;
   filename: string;
   file_size: number | null;
   is_active: boolean;
+  parsing_status: ParsingStatus;
+  parsing_error: string | null;
   created_at: string;
 }
 
@@ -22,8 +26,14 @@ interface Subscription {
   templateUrl: './cvs.component.html',
   styleUrl: './cvs.component.css',
 })
-export class CvsComponent implements OnInit {
+export class CvsComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+  // While any CV is in `pending` status, we poll /cvs every 3s so the pill
+  // flips to "Ready" as soon as the background task finishes. Polling stops
+  // as soon as nothing is pending — no point burning cycles otherwise.
+  private readonly POLL_INTERVAL_MS = 3000;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
 
   cvs = signal<CvItem[]>([]);
   subscription = signal<Subscription | null>(null);
@@ -50,6 +60,13 @@ export class CvsComponent implements OnInit {
   ngOnInit(): void {
     this.loadCvs();
     this.loadSubscription();
+  }
+
+  ngOnDestroy(): void {
+    // Avoid a zombie poll if the user navigates away while a CV is still
+    // parsing — the subscription callback would try to set signals on a
+    // destroyed component.
+    this.stopPolling();
   }
 
   private loadSubscription(): void {
@@ -132,7 +149,11 @@ export class CvsComponent implements OnInit {
         })
         .toPromise();
 
-      this.loadCvs();
+      // Silent refresh — the upload dropzone already showed progress; an
+      // extra "Loading…" flash on the list below is just noise. The new CV
+      // will appear with a "Analysing…" pill and polling will flip it to
+      // "Ready" when Docling finishes.
+      this.loadCvs({ silent: true });
     } catch (err: any) {
       if (err?.name === 'AbortError') {
         this.uploadError.set('Upload timed out. Check your connection and try again.');
@@ -147,9 +168,19 @@ export class CvsComponent implements OnInit {
 
   activateCv(cv: CvItem): void {
     this.http.put(`${this.api}/${cv.id}/activate`, {}).subscribe({
-      next: () => this.loadCvs(),
+      next: () => this.loadCvs({ silent: true }),
       error: (err) => {
         this.uploadError.set(err.error?.detail ?? 'Failed to activate CV.');
+      },
+    });
+  }
+
+  retryParse(cv: CvItem): void {
+    this.uploadError.set('');
+    this.http.post(`${this.api}/${cv.id}/reparse`, {}).subscribe({
+      next: () => this.loadCvs({ silent: true }),
+      error: (err) => {
+        this.uploadError.set(err.error?.detail ?? 'Failed to retry parsing.');
       },
     });
   }
@@ -175,7 +206,7 @@ export class CvsComponent implements OnInit {
       next: () => {
         this.cvPendingDelete.set(null);
         this.isDeleting.set(false);
-        this.loadCvs();
+        this.loadCvs({ silent: true });
       },
       error: (err) => {
         // Keep the modal open so the user can read the error and retry.
@@ -185,12 +216,45 @@ export class CvsComponent implements OnInit {
     });
   }
 
-  private loadCvs(): void {
-    this.isLoading.set(true);
+  // `silent` skips the "Loading…" flash. We want the full spinner on first
+  // load of the page, but not on every subsequent refresh (upload, delete,
+  // poll tick) — otherwise the list flickers into an empty state each time.
+  private loadCvs(opts: { silent?: boolean } = {}): void {
+    if (!opts.silent) this.isLoading.set(true);
     this.http.get<CvItem[]>(`${this.api}/cvs`).subscribe({
-      next: (cvs) => { this.cvs.set(cvs); this.isLoading.set(false); },
-      error: () => this.isLoading.set(false),
+      next: (cvs) => {
+        this.cvs.set(cvs);
+        if (!opts.silent) this.isLoading.set(false);
+        // Re-evaluate polling every time the list arrives. If any row is
+        // still pending, schedule the next tick; otherwise we're idle.
+        this.reschedulePolling(cvs);
+      },
+      error: () => {
+        if (!opts.silent) this.isLoading.set(false);
+      },
     });
+  }
+
+  private reschedulePolling(cvs: CvItem[]): void {
+    const anyPending = cvs.some((cv) => cv.parsing_status === 'pending');
+    if (!anyPending) {
+      this.stopPolling();
+      return;
+    }
+    // Replace any existing timer so we don't stack them when /cvs responses
+    // overlap (slow network → multiple in-flight polls).
+    if (this.pollTimer) clearTimeout(this.pollTimer);
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = null;
+      this.loadCvs({ silent: true });
+    }, this.POLL_INTERVAL_MS);
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   formatSize(bytes: number | null): string {

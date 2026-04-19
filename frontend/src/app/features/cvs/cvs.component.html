@@ -68,15 +68,42 @@
                 @if (cv.is_active) {
                   <span class="cv-badge">Active</span>
                 }
+                <!-- Parsing status pill — tells the user whether Docling has
+                     finished analysing the CV. Sessions can only start once
+                     this reaches "Ready". -->
+                @switch (cv.parsing_status) {
+                  @case ('pending') {
+                    <span class="cv-parse-pill pending" title="Analysing your CV — usually under a minute.">
+                      <span class="pulse-dot"></span>
+                      Analysing…
+                    </span>
+                  }
+                  @case ('parsed') {
+                    <span class="cv-parse-pill parsed">Ready</span>
+                  }
+                  @case ('failed') {
+                    <span class="cv-parse-pill failed" [title]="cv.parsing_error ?? 'Unknown error'">
+                      Failed
+                    </span>
+                  }
+                }
               </div>
               <div class="cv-meta">
                 <span>{{ formatSize(cv.file_size) }}</span>
                 <span>·</span>
                 <span>{{ formatDate(cv.created_at) }}</span>
               </div>
+              @if (cv.parsing_status === 'failed' && cv.parsing_error) {
+                <!-- Show a trimmed error hint below the row for failed CVs
+                     so the user has something actionable before retrying. -->
+                <div class="cv-parse-error">{{ cv.parsing_error }}</div>
+              }
             </div>
             <div class="cv-actions">
-              @if (!cv.is_active) {
+              @if (cv.parsing_status === 'failed') {
+                <button class="btn btn-ghost btn-sm" (click)="retryParse(cv)">Retry</button>
+              }
+              @if (!cv.is_active && cv.parsing_status === 'parsed') {
                 <button class="btn btn-ghost btn-sm" (click)="activateCv(cv)">Set active</button>
               }
               <button class="btn-delete" (click)="askDeleteCv(cv)">Delete</button>

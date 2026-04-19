@@ -152,6 +152,66 @@
   letter-spacing: 0.04em;
 }
 
+/* Parsing-status pill. Same dimensions as .cv-badge so they align visually
+   when both are shown (Active + Ready). Three visual states — amber for
+   in-progress, green for done, red for failed. */
+.cv-parse-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cv-parse-pill.pending {
+  background: rgba(224, 182, 74, 0.14);
+  color: var(--color-warning);
+}
+
+.cv-parse-pill.parsed {
+  background: rgba(45, 122, 79, 0.08);
+  color: var(--color-success);
+}
+
+.cv-parse-pill.failed {
+  background: rgba(192, 57, 43, 0.08);
+  color: var(--color-error);
+}
+
+/* Pulsing dot for the pending pill — cheap, obvious cue that something is
+   still in flight without adding a full spinner. */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: cv-parse-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes cv-parse-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.15); }
+}
+
+.cv-parse-error {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-error);
+  opacity: 0.85;
+  max-width: 420px;
+  /* Truncate multi-line errors so a verbose Docling message doesn't break
+     the row layout. Users can see the full value as a tooltip on the pill. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .cv-meta {
   display: flex;
   gap: 6px;

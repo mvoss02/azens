@@ -8,12 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import get_current_user_id, get_verified_user_id
 from core.database import get_db
 from models.cv import CV
+from models.enums import CVParsingStatus
 from schemas.cv import (
     ConfirmUploadRequest,
     CVResponse,
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from services.cv_parser import parse_cv_background
 from services.s3 import delete_object_best_effort, generate_upload_url
 
 router = APIRouter()
@@ -46,6 +48,7 @@ async def upload_url(
 @router.post('/confirm', response_model=CVResponse, status_code=status.HTTP_200_OK)
 async def confirm(
     body: ConfirmUploadRequest,
+    background_tasks: BackgroundTasks,
     user_id: UUID = Depends(get_verified_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> CVResponse:
@@ -72,6 +75,12 @@ async def confirm(
     await db.flush()
     await db.commit()
     await db.refresh(cv_record)  # re-reads the object from DB, including updated_at
+
+    # Schedule parsing AFTER the commit: the background task opens its own
+    # session and queries for this row by id, so it must already be visible
+    # to other sessions. Scheduling before commit would race the task against
+    # the visibility window and could have it see "row not found."
+    background_tasks.add_task(parse_cv_background, cv_record.id, cv_record.s3_key)
 
     return cv_record
 
@@ -108,8 +117,40 @@ async def activate_cv(
     target_cv.is_active = True
 
     await db.flush()
+    await db.commit()
     await db.refresh(target_cv)  # re-reads the object from DB, including updated_at
     return target_cv
+
+
+@router.post(
+    '/{cv_id}/reparse',
+    response_model=CVResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def reparse_cv(
+    cv_id: UUID,
+    background_tasks: BackgroundTasks,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> CVResponse:
+    """User-triggered retry for a CV that failed to parse.
+
+    Resets status to PENDING and re-schedules the background parse. Safe to
+    call on any status — if a CV is already parsed, this will re-parse and
+    overwrite parsed_text, which is intentional (fresh bug-fixed Docling).
+    """
+    result = await db.execute(select(CV).where(CV.id == cv_id, CV.user_id == user_id))
+    cv = result.scalar_one_or_none()
+    if cv is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='CV not found')
+
+    cv.parsing_status = CVParsingStatus.PENDING
+    cv.parsing_error = None
+    await db.commit()
+    await db.refresh(cv)
+
+    background_tasks.add_task(parse_cv_background, cv.id, cv.s3_key)
+    return cv
 
 
 @router.delete('/{cv_id}', status_code=status.HTTP_204_NO_CONTENT)
