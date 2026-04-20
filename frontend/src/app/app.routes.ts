@@ -67,5 +67,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/admin/admin.component').then(m => m.AdminComponent),
   },
+  {
+    // Public route hit from mailing-list unsubscribe links. No auth —
+    // the token in the URL is the authorization.
+    path: 'unsubscribe/:token',
+    loadComponent: () =>
+      import('./features/unsubscribe/unsubscribe.component').then(m => m.UnsubscribeComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

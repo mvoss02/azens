@@ -1,0 +1,57 @@
+/* Styles mirror the verify / reset-password layouts so the public status
+   pages feel like one consistent family. Classes are scoped with `unsub-`
+   to avoid any collision with the design system's button utilities. */
+
+.unsub-muted {
+  color: var(--color-text-faint);
+  font-size: 14px;
+  margin: 0;
+  text-align: center;
+}
+
+.unsub-box {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  text-align: center;
+  margin: 0 0 16px;
+}
+
+.unsub-box p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.unsub-success {
+  background: rgba(45, 122, 79, 0.06);
+  color: var(--color-success);
+  border: 1px solid rgba(45, 122, 79, 0.2);
+}
+
+.unsub-error {
+  background: rgba(192, 57, 43, 0.06);
+  color: var(--color-error);
+  border: 1px solid rgba(192, 57, 43, 0.2);
+}
+
+.unsub-back {
+  width: 100%;
+  justify-content: center;
+}
+
+/* Idle-state body copy — one short sentence explaining what the confirm
+   button will do. Kept below the title and above the button so the flow
+   reads top-to-bottom. */
+.unsub-body {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0 0 20px;
+  text-align: center;
+}
+
+.unsub-confirm {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 10px;
+}

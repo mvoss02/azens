@@ -1,0 +1,33 @@
+<app-auth-layout [title]="pageTitle()">
+  @switch (status()) {
+    @case ('idle') {
+      <!-- Explicit-consent step. The user arrived here from a link in our
+           email; we do NOT fire the DELETE until they click the button. -->
+      <p class="unsub-body">{{ i18n.t('unsubscribe.idle.body') }}</p>
+      <button
+        type="button"
+        class="btn btn-primary unsub-confirm"
+        (click)="confirm()"
+      >
+        {{ i18n.t('unsubscribe.confirm') }}
+      </button>
+      <a routerLink="/" class="btn btn-ghost unsub-back">{{ i18n.t('unsubscribe.keep') }}</a>
+    }
+    @case ('pending') {
+      <p class="unsub-muted">{{ i18n.t('unsubscribe.pending') }}</p>
+    }
+    @case ('success') {
+      <!-- role=status + aria-live: screen readers announce the outcome. -->
+      <div class="unsub-box unsub-success" role="status" aria-live="polite">
+        <p>{{ i18n.t('unsubscribe.success.body') }}</p>
+      </div>
+      <a routerLink="/" class="btn btn-ghost unsub-back">{{ i18n.t('unsubscribe.back') }}</a>
+    }
+    @case ('error') {
+      <div class="unsub-box unsub-error" role="alert">
+        <p>{{ i18n.t('unsubscribe.error.body') }}</p>
+      </div>
+      <a routerLink="/" class="btn btn-ghost unsub-back">{{ i18n.t('unsubscribe.back') }}</a>
+    }
+  }
+</app-auth-layout>

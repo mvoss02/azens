@@ -185,6 +185,26 @@ const en: TranslationMap = {
   'auth.signup.title': 'Create your account',
   'auth.signup.sub': 'Start practising for your IB & PE interviews',
 
+  // Unsubscribe landing page — hit from the link in every mailing-list
+  // email. Requires an explicit Confirm click before we actually fire the
+  // DELETE: avoids accidental unsubscribes from email-client prefetchers
+  // and from the user's own misclicks. Four states: idle → pending →
+  // success/error.
+  'unsubscribe.idle.title': 'Unsubscribe from our mailing list?',
+  'unsubscribe.idle.body':
+    'You\'ll stop receiving product updates and launch announcements from Azens. You can always re-join from our website.',
+  'unsubscribe.confirm': 'Yes, unsubscribe me',
+  'unsubscribe.keep': 'Keep me on the list',
+  'unsubscribe.title': 'Unsubscribing…',
+  'unsubscribe.pending': 'Removing your email from our list…',
+  'unsubscribe.success.title': 'You\'re unsubscribed.',
+  'unsubscribe.success.body':
+    'Your email has been removed from our mailing list. You won\'t hear from us again unless you sign up, again, through the website.',
+  'unsubscribe.error.title': 'Link invalid',
+  'unsubscribe.error.body':
+    'This unsubscribe link is invalid or has already been used. If you keep receiving emails, reply to one of them and we\'ll remove you manually.',
+  'unsubscribe.back': 'Back to Azens',
+
   // Waitlist / product-updates form. Deliberately framed as a general
   // mailing list, not a single-feature waitlist — gives us flexibility to
   // email signups about future launches without a second opt-in.
@@ -195,7 +215,7 @@ const en: TranslationMap = {
     'You\'ll get occasional product updates and launch announcements. Unsubscribe any time via the link in every email.',
   'waitlist.success.title': 'You\'re on the list.',
   'waitlist.success.body':
-    'We\'ll email you about Azens launches and major product updates — no spam, easy unsubscribe.',
+    'We\'ll email you about Azens launches and major product updates - no spam, easy unsubscribe.',
   'waitlist.error.generic': 'Something went wrong. Please try again.',
   'waitlist.error.invalid_email': 'Please enter a valid email address.',
 };

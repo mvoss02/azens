@@ -13,3 +13,7 @@ class WaitlistRequest(BaseModel):
 
 class WaitlistResponse(BaseModel):
     status: Literal['joined']
+    
+
+class UnsubscribeResponse(BaseModel):
+    status: Literal['unsubscribed']

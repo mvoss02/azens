@@ -28,6 +28,13 @@ class Waitlist(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    
+    unsubscribe_token: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+        unique=True,
+        default=uuid.uuid4,
+    )
 
     # Composite uniqueness — same email can be on multiple waitlists (e.g.
     # case_studies now, knowledge_drills later), but not the same one twice.
