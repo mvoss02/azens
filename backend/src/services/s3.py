@@ -56,9 +56,7 @@ def delete_object_best_effort(s3_key: str) -> None:
     sweep — not built yet; filed as tech debt.
     """
     try:
-        s3_client.delete_object(
-            Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key
-        )
+        s3_client.delete_object(Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key)
     except Exception:
         logger.exception('S3 delete failed for key=%s', s3_key)
 

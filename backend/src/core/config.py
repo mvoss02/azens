@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     # BACKEND
     backend_url: str = 'http://localhost:8080'
     service_api_key: str
-    
+
     zombie_grace_seconds: int = 60
 
     # DB

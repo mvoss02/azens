@@ -31,8 +31,14 @@ PLAN_CYCLE_TO_PRICE_ID: dict[tuple[str, str], str] = {
     ('analyst', 'halfyearly'): settings_billing.stripe_price_analyst_halfyearly,
     ('associate', 'monthly'): settings_billing.stripe_price_associate_monthly,
     ('associate', 'halfyearly'): settings_billing.stripe_price_associate_halfyearly,
-    ('managing_director', 'monthly'): settings_billing.stripe_price_managing_director_monthly,
-    ('managing_director', 'halfyearly'): settings_billing.stripe_price_managing_director_halfyearly,
+    (
+        'managing_director',
+        'monthly',
+    ): settings_billing.stripe_price_managing_director_monthly,
+    (
+        'managing_director',
+        'halfyearly',
+    ): settings_billing.stripe_price_managing_director_halfyearly,
 }
 
 # Reverse lookups used by the webhook. A Stripe event carries a real price
@@ -46,8 +52,7 @@ PRICE_TO_PLAN: dict[str, SubscriptionPlan] = {
     for (plan, _cycle), price_id in PLAN_CYCLE_TO_PRICE_ID.items()
 }
 PRICE_TO_CYCLE: dict[str, str] = {
-    price_id: cycle
-    for (_plan, cycle), price_id in PLAN_CYCLE_TO_PRICE_ID.items()
+    price_id: cycle for (_plan, cycle), price_id in PLAN_CYCLE_TO_PRICE_ID.items()
 }
 
 
@@ -133,9 +138,7 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
     # wins, the other gets IntegrityError on flush and the whole txn rolls back
     # so Stripe retries — on retry the SELECT below catches it.
     existing = await db.execute(
-        select(ProcessedStripeEvent).where(
-            ProcessedStripeEvent.event_id == event['id']
-        )
+        select(ProcessedStripeEvent).where(ProcessedStripeEvent.event_id == event['id'])
     )
     if existing.scalar_one_or_none():
         logger.info('Duplicate Stripe event %s — skipping', event['id'])
@@ -159,12 +162,15 @@ async def webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
         # the txn, so the retry sees a fresh event and dedupe doesn't bite.
         logger.exception(
             'Stripe webhook failed for event id=%s type=%s',
-            event['id'], event['type'],
+            event['id'],
+            event['type'],
         )
         raise
 
 
-async def _dispatch_stripe_event(event: dict, event_created: datetime, db: AsyncSession) -> dict:
+async def _dispatch_stripe_event(
+    event: dict, event_created: datetime, db: AsyncSession
+) -> dict:
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         user_id = UUID(session['metadata']['user_id'])
@@ -182,7 +188,11 @@ async def _dispatch_stripe_event(event: dict, event_created: datetime, db: Async
         if plan is None or cycle is None or period_end is None:
             logger.error(
                 'Unusable Stripe payload for session %s — price_id=%s plan=%s cycle=%s period_end=%s',
-                session['id'], price_id, plan, cycle, period_end,
+                session['id'],
+                price_id,
+                plan,
+                cycle,
+                period_end,
             )
             return {'received': True}
 
@@ -293,7 +303,9 @@ async def _dispatch_stripe_event(event: dict, event_created: datetime, db: Async
 
 
 @router.get(
-    '/subscription', response_model=SubscriptionResponse | None, status_code=status.HTTP_200_OK
+    '/subscription',
+    response_model=SubscriptionResponse | None,
+    status_code=status.HTTP_200_OK,
 )
 async def subscription(
     user_id: UUID = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)

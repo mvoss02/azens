@@ -594,6 +594,14 @@
   color: #E8E1CE;
 }
 
+/* Anchor target for the tab-card "Keep me posted" CTA. The id sits on the
+   feature block so the scroll lands at the TOP of the tile (title, bullets,
+   form all visible) rather than on the form alone. scroll-margin-top keeps
+   the tile's top clear of the sticky nav. */
+#waitlist-updates {
+  scroll-margin-top: 96px;
+}
+
 .feature::after {
   content: "";
   position: absolute;

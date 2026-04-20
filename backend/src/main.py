@@ -8,6 +8,7 @@ from api.cvs import router as router_cv
 from api.feedback import router as router_feedback
 from api.sessions import router as router_session
 from api.transcripts import router as router_transcripts
+from api.waitlist import router as router_waitlist
 from core.config import settings as settings_api
 from core.logging import setup_logging
 
@@ -39,6 +40,7 @@ app.include_router(router_feedback, prefix='/api/v1/feedback', tags=['feedback']
 app.include_router(
     router_transcripts, prefix='/api/v1/transcripts', tags=['transcripts']
 )
+app.include_router(router_waitlist, prefix='/api/v1/waitlist', tags=['waitlist'])
 
 
 @app.get('/health')

@@ -94,15 +94,15 @@ const en: TranslationMap = {
   'product.kicker': 'The product',
   'product.title': 'Five tools. One',
   'product.title.em': 'goal.',
-  'product.side': 'Two equal pillars — CV screening and knowledge drills — both powered by a voice AI that sounds real, both followed by a detailed report. Plus case studies coming Q2.',
+  'product.side': 'Two equal pillars - CV screening and knowledge drills - both powered by a voice AI that sounds real, both followed by a detailed report. Plus case studies coming Q2.',
 
   // Feature 1
   'feature1.num': '01',
   'feature1.meta': 'Voice AI interviewer',
   'feature1.title': 'Talk to an interviewer that sounds',
   'feature1.title.em': 'real.',
-  'feature1.desc': 'A low-latency voice agent that interrupts, probes and pushes back. Not a chatbot typing replies — an actual voice on the other end of the call.',
-  'feature1.li1': 'Natural conversation — interrupts and follow-ups',
+  'feature1.desc': 'A low-latency voice agent that interrupts, probes and pushes back. Not a chatbot typing replies, an actual voice on the other end of the call, who is always available for you.',
+  'feature1.li1': 'Natural conversation - interrupts and follow-ups',
   'feature1.li2': 'Session length: 15 · 30 · 45 · 60 · 90 min',
   'feature1.li3': 'Personality modes: strict · balanced · supportive',
   'feature1.li4': 'Available in EN · DE · ES · IT · NL',
@@ -137,7 +137,7 @@ const en: TranslationMap = {
   'feature4.title': 'A feedback report you can',
   'feature4.title.em': 'actually',
   'feature4.title.after': 'act on.',
-  'feature4.desc': 'Every session ends with a structured report. Scored across four categories — not a vibe check. Specific strengths, specific weaknesses, exact timestamps from the transcript.',
+  'feature4.desc': 'Every session ends with a structured report. Scored across four categories, not a vibe check. Specific strengths, specific weaknesses, exact timestamps from the transcript.',
   'feature4.li1': 'Scored on communication, technical accuracy, structure, confidence',
   'feature4.li2': 'Transcript quoted inline with the exact moments that cost you points',
   'feature4.li3': 'Three personalised drills auto-queued for tomorrow',
@@ -149,7 +149,7 @@ const en: TranslationMap = {
   'feature5.title': 'Excel case studies,',
   'feature5.title.em': 'presented',
   'feature5.title.after': 'to the AI.',
-  'feature5.desc': 'Pull a real Excel-based case from a pool of dozens — LBO, M&A, DCF, merger models. Work through it offline, then present to the AI interviewer.',
+  'feature5.desc': 'Pull a real Excel-based case from a pool of dozens (LBO, M&A, DCF, merger models). Work through it offline, then present to the AI interviewer.',
   'feature5.cta': 'Join the waitlist',
 
   // Testimonials
@@ -184,6 +184,20 @@ const en: TranslationMap = {
   'auth.login.sub': 'Sign in to your Azens account',
   'auth.signup.title': 'Create your account',
   'auth.signup.sub': 'Start practising for your IB & PE interviews',
+
+  // Waitlist / product-updates form. Deliberately framed as a general
+  // mailing list, not a single-feature waitlist — gives us flexibility to
+  // email signups about future launches without a second opt-in.
+  'waitlist.placeholder': 'Enter your email',
+  'waitlist.submit': 'Keep me posted',
+  'waitlist.submitting': 'Sending…',
+  'waitlist.consent':
+    'You\'ll get occasional product updates and launch announcements. Unsubscribe any time via the link in every email.',
+  'waitlist.success.title': 'You\'re on the list.',
+  'waitlist.success.body':
+    'We\'ll email you about Azens launches and major product updates — no spam, easy unsubscribe.',
+  'waitlist.error.generic': 'Something went wrong. Please try again.',
+  'waitlist.error.invalid_email': 'Please enter a valid email address.',
 };
 
 // All other languages start empty — t() falls back to the EN copy for any

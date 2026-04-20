@@ -3,12 +3,13 @@ import { RouterLink } from '@angular/router';
 import { NavComponent } from '../../shared/components/nav/nav.component';
 import { FooterComponent } from '../../shared/components/footer/footer.component';
 import { OrbComponent } from '../../shared/components/orb/orb.component';
+import { WaitlistFormComponent } from '../../shared/components/waitlist-form/waitlist-form.component';
 import { I18nService } from '../../core/i18n/i18n.service';
 
 @Component({
   selector: 'app-landing',
   standalone: true,
-  imports: [RouterLink, NavComponent, FooterComponent, OrbComponent],
+  imports: [RouterLink, NavComponent, FooterComponent, OrbComponent, WaitlistFormComponent],
   templateUrl: './landing.component.html',
   styleUrl: './landing.component.css',
 })
@@ -21,7 +22,7 @@ export class LandingComponent {
 
   readonly testimonials = [
     {
-      quote: 'The bot caught me bluffing the exit multiple — exactly like my MD did two weeks later. I walked into the super-day genuinely ready.',
+      quote: 'The bot caught me bluffing the exit multiple, exactly like my MD did two weeks later. I walked into the super-day genuinely ready.',
       name: 'Marta K.',
       role: 'Associate · M&A',
       tags: ['12 SESSIONS', '8.5 HRS TOTAL', 'STRICT', 'ENGLISH'],
@@ -35,7 +36,7 @@ export class LandingComponent {
       score: '7.8',
     },
     {
-      quote: 'Endlich ein Tool das auf Deutsch funktioniert. Die Fragen waren härter als im echten Interview — genau das was ich brauchte.',
+      quote: 'Endlich ein Tool das auf Deutsch funktioniert. Die Fragen waren härter als im echten Interview, genau das was ich brauchte.',
       name: 'Lukas W.',
       role: 'Intern · PE',
       tags: ['5 SESSIONS', '153 MIN TOTAL', 'SUPPORTIVE', 'GERMAN'],

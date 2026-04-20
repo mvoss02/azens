@@ -23,7 +23,7 @@ def verify_password(password: str, hashed: str | None) -> bool:
     # instead of crashing on None.encode().
     if not isinstance(hashed, str):
         return False
-          
+
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 

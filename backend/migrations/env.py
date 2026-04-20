@@ -31,6 +31,9 @@ from models.transcript import (
 from models.user import (
     User,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
 )
+from models.waitlist import (
+    Waitlist,  # noqa: F401 - NEEDED: Base.metadata only knows about models that have been imported
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

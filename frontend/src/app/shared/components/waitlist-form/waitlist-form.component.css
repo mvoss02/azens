@@ -1,0 +1,113 @@
+/* This component currently only lives inside `.feature.ink` (dark ink
+   background, cream text). Colours are tuned for that context. If we ever
+   drop it onto a light surface, add a parent class variant rather than
+   rewiring these base styles — keeps dark-bg usages working. */
+
+.waitlist-form-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 520px;
+  margin-top: 8px;
+}
+
+.waitlist-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.waitlist-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 12px 18px;
+  border: 1px solid rgba(232, 225, 206, 0.22);
+  border-radius: var(--radius-pill);
+  background: rgba(232, 225, 206, 0.06);
+  color: #E8E1CE;
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: var(--transition);
+}
+
+.waitlist-input::placeholder {
+  color: rgba(232, 225, 206, 0.5);
+}
+
+.waitlist-input:focus {
+  border-color: var(--color-amber);
+  background: rgba(232, 225, 206, 0.1);
+}
+
+.waitlist-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.waitlist-submit {
+  flex-shrink: 0;
+}
+
+.waitlist-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.waitlist-error {
+  font-size: 12.5px;
+  color: #ff8a7a;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.waitlist-consent {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(232, 225, 206, 0.55);
+  margin: 0;
+  max-width: 460px;
+}
+
+/* ── Success state ─────────────────────────────────── */
+
+.waitlist-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 22px;
+  background: rgba(168, 191, 160, 0.1);
+  border: 1px solid rgba(168, 191, 160, 0.28);
+  border-radius: var(--radius-lg);
+  max-width: 520px;
+}
+
+.check-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-sage);
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.waitlist-success h4 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  color: #E8E1CE;
+}
+
+.waitlist-success p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(232, 225, 206, 0.75);
+  line-height: 1.5;
+}

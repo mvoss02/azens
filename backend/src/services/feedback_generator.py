@@ -138,12 +138,8 @@ async def generate_and_save_feedback(session_id: UUID):
             # Re-query the session because after rollback the ORM object is
             # expired and attribute access would re-hit the DB anyway.
             await db.rollback()
-            logger.exception(
-                'Feedback generation failed for session %s', session_id
-            )
-            result = await db.execute(
-                select(Session).where(Session.id == session_id)
-            )
+            logger.exception('Feedback generation failed for session %s', session_id)
+            result = await db.execute(select(Session).where(Session.id == session_id))
             sess = result.scalar_one_or_none()
             if sess is not None:
                 sess.feedback_status = FeedbackStatus.FAILED

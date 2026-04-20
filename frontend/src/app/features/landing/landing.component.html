@@ -46,7 +46,7 @@
             <div class="pc-transcript">
               <div class="pc-line">
                 <div class="who">YOU</div>
-                <div>"We advised on a €480M carve-out — I ran the operating model and built the DCF bridge."</div>
+                <div>"We advised on a €480M carve-out. I ran the operating model and built the DCF bridge."</div>
               </div>
               <div class="pc-line bot">
                 <div class="who">ALEX</div>
@@ -103,7 +103,10 @@
                 <span>·</span>
                 <span>AI pushback</span>
               </div>
-              <a href="#" class="btn btn-ghost coming-soon-btn">Join the waitlist <span>→</span></a>
+              <!-- Hero tab-card CTA: anchor-scrolls to the single canonical
+                   waitlist form further down (feature 5 block). Keeps the
+                   tab visually clean — one form, one source of truth. -->
+              <a href="#waitlist-updates" class="btn btn-ghost coming-soon-btn">{{ i18n.t('waitlist.submit') }} <span>→</span></a>
             </div>
           </div>
         }
@@ -257,20 +260,27 @@
       </div>
     </div>
 
-    <!-- Feature 5: Case Studies (Coming Soon) -->
-    <div class="feature ink">
+    <!-- Feature 5: Case Studies (Coming Soon).
+         `id="waitlist-updates"` sits on the feature block (not the form
+         wrapper) so the tab-card anchor lands at the TOP of the tile —
+         user sees the whole feature (title → bullets → form) rather than
+         jumping straight to the form with its context scrolled off. -->
+    <div id="waitlist-updates" class="feature ink">
       <div class="feature-text">
         <div class="num">{{ i18n.t('feature5.num') }}</div>
         <span class="meta">{{ i18n.t('feature5.meta') }}</span>
         <h3>{{ i18n.t('feature5.title') }} <em>{{ i18n.t('feature5.title.em') }}</em> {{ i18n.t('feature5.title.after') }}</h3>
         <p>{{ i18n.t('feature5.desc') }}</p>
         <ul>
-          <li>Curated pool — real IB &amp; PE case study formats</li>
+          <li>Curated pool - real IB &amp; PE case study formats</li>
           <li>Work at your own pace, then present out loud</li>
           <li>AI pushes back on assumptions exactly where a live interviewer would</li>
           <li>Included in Associate &amp; Managing Director plans at no extra cost</li>
         </ul>
-        <a class="btn btn-on-dark" href="#">Join the waitlist <span>→</span></a>
+        <!-- source='case_studies' records where interest came from for
+             analytics; user-facing copy is broader (product updates) so
+             we're free to email them about future features too. -->
+        <app-waitlist-form source="case_studies"></app-waitlist-form>
       </div>
       <div class="mock coming-soon-mock">
         <div class="coming-soon-overlay">
@@ -385,7 +395,7 @@
     <div class="faq">
       <details class="faq-item" open>
         <summary>Does the AI actually sound human? <span class="plus"></span></summary>
-        <p>Yes — natural voice, interruptions, follow-up probes. Built on a production voice pipeline with low-latency speech-to-text and natural TTS.</p>
+        <p>Yes, natural voice, interruptions, follow-up probes. Built on a production voice pipeline with low-latency speech-to-text and natural TTS.</p>
       </details>
       <details class="faq-item">
         <summary>Which languages are supported? <span class="plus"></span></summary>

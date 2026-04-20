@@ -286,9 +286,7 @@ async def get_session(
     # That way the first read after the bot has walked away is the one
     # that cleans up — no separate cron needed.
     result = await db.execute(
-        select(Session).where(
-            Session.id == session_id, Session.user_id == user_id
-        )
+        select(Session).where(Session.id == session_id, Session.user_id == user_id)
     )
     curr_sess = result.scalar_one_or_none()
 
@@ -311,12 +309,8 @@ async def get_session(
             # on subsequent polls without needing a manual /end call.
             curr_sess.status = SessionStatus.COMPLETED
             curr_sess.ended_at = datetime.now(UTC)
-            background_tasks.add_task(
-                generate_and_save_feedback, curr_sess.id
-            )
-            logger.info(
-                'Session %s past zombie grace — force-ended', curr_sess.id
-            )
+            background_tasks.add_task(generate_and_save_feedback, curr_sess.id)
+            logger.info('Session %s past zombie grace — force-ended', curr_sess.id)
 
     # Mint a fresh Daily token if the session is (still) ACTIVE. Daily
     # tokens expire; the one stored at /start is only valid until the room

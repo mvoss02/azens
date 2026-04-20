@@ -35,9 +35,7 @@ async def create_log(
     # other users' sessions (or fill the table with orphan rows).
     result = await db.execute(select(Session.id).where(Session.id == body.session_id))
     if result.scalar_one_or_none() is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail='Session not found'
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
 
     entry = Transcript(
         session_id=body.session_id,

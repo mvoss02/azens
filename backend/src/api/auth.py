@@ -39,7 +39,7 @@ router = APIRouter()
 
 
 _last_resend_at: dict[UUID, datetime] = {}
-_DUMMY_PASSWORD_HASH = hash_password('moritz-is-great') # any placeholder string
+_DUMMY_PASSWORD_HASH = hash_password('moritz-is-great')  # any placeholder string
 
 
 @router.post(
@@ -68,7 +68,9 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
     )  # flush sends the INSERT to DB and populates user.id, but doesn't commit yet
 
     # 3. Send a verification email
-    await asyncio.to_thread(send_verification_email, user.email, user.verification_token)
+    await asyncio.to_thread(
+        send_verification_email, user.email, user.verification_token
+    )
 
     # 4. Create token and return
     token = create_access_token(str(user.id))
@@ -81,15 +83,15 @@ async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenRespons
     result = await db.execute(select(User).where(User.email == user.email))
 
     existing_user = result.scalar_one_or_none()
-    
+
     # 2. Validate password
     if existing_user and existing_user.hashed_password:
         hash_to_check = existing_user.hashed_password
     else:
         hash_to_check = _DUMMY_PASSWORD_HASH
-    
+
     password_is_valid = verify_password(user.password, hash_to_check)
-    
+
     # Note: Also catches OAuth-only users (hashed_password is None) trying to
     # password-login; they fall through to the dummy hash and fail the
     # bcrypt check.
@@ -156,9 +158,7 @@ async def google():
 
 
 @router.get('/google/callback')
-async def google_callback(
-    code: str, db: AsyncSession = Depends(get_db)
-):
+async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
     # All failure modes below bounce the user back to /auth/login with a
     # generic error. We don't surface Google's internal error codes to the
     # UI — they're unhelpful to humans and sometimes leak info about the
@@ -209,9 +209,7 @@ async def google_callback(
     # Validate the fields we need. Google should always return both, but
     # guard in case the API evolves or the response body is an error shape.
     if not google_profile.get('id') or not google_profile.get('email'):
-        logger.warning(
-            'Google userinfo missing id or email: %s', google_profile
-        )
+        logger.warning('Google userinfo missing id or email: %s', google_profile)
         return oauth_failed_redirect
 
     # Only trust emails Google has verified. Without this, a user with an
@@ -220,9 +218,7 @@ async def google_callback(
     # we apply to new OAuth users. Default to False on missing field.
     # Note: Google v2 userinfo uses `verified_email` (vs `email_verified` on OIDC).
     if not google_profile.get('verified_email', False):
-        logger.warning(
-            'Google email not verified: %s', google_profile.get('email')
-        )
+        logger.warning('Google email not verified: %s', google_profile.get('email'))
         return oauth_failed_redirect
 
     # 3. Existing Google user → log them in
@@ -238,9 +234,7 @@ async def google_callback(
 
     # 4. Email is already registered (password user or different OAuth provider).
     # Refuse to silently link — forces the user to sign in the original way.
-    result = await db.execute(
-        select(User).where(User.email == google_profile['email'])
-    )
+    result = await db.execute(select(User).where(User.email == google_profile['email']))
     user = result.scalar_one_or_none()
     if user:
         return RedirectResponse(
@@ -278,9 +272,7 @@ async def linkedin():
 
 
 @router.get('/linkedin/callback')
-async def linkedin_callback(
-    code: str, db: AsyncSession = Depends(get_db)
-):
+async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)):
     oauth_failed_redirect = RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/login?error=oauth_failed'
     )
@@ -330,17 +322,13 @@ async def linkedin_callback(
     # LinkedIn's OIDC userinfo returns 'sub' (unique id) and 'email'. Both
     # are required; bail if either is missing.
     if not linkedin_profile.get('sub') or not linkedin_profile.get('email'):
-        logger.warning(
-            'LinkedIn userinfo missing sub or email: %s', linkedin_profile
-        )
+        logger.warning('LinkedIn userinfo missing sub or email: %s', linkedin_profile)
         return oauth_failed_redirect
 
     # Only trust verified emails — same argument as the Google branch.
     # LinkedIn OIDC uses `email_verified` (the OIDC standard field name).
     if not linkedin_profile.get('email_verified', False):
-        logger.warning(
-            'LinkedIn email not verified: %s', linkedin_profile.get('email')
-        )
+        logger.warning('LinkedIn email not verified: %s', linkedin_profile.get('email'))
         return oauth_failed_redirect
 
     # 3. Existing LinkedIn user → log them in
@@ -427,9 +415,7 @@ async def resend_verification(
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(
-            status.HTTP_401_UNAUTHORIZED, detail='Not authenticated'
-        )
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail='Not authenticated')
 
     # No-op for already-verified users. We return 200 rather than 400 so
     # double-clicks on the banner right after verifying don't throw a scary
@@ -442,7 +428,9 @@ async def resend_verification(
     if last is not None:
         elapsed = (now - last).total_seconds()
         if elapsed < settings_auth.resend_verification_cooldown_seconds:
-            retry_after = int(settings_auth.resend_verification_cooldown_seconds - elapsed)
+            retry_after = int(
+                settings_auth.resend_verification_cooldown_seconds - elapsed
+            )
             raise HTTPException(
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f'Please wait {retry_after}s before requesting another email',
@@ -467,15 +455,15 @@ async def resend_verification(
 @router.post('/forgot-password', status_code=status.HTTP_200_OK)
 async def forgot_password(
     background_tasks: BackgroundTasks,
-    body: ForgotPasswordRequest, 
-    db: AsyncSession = Depends(get_db)
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     # Find user by email
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
 
     if not user:
-        _ = secrets.token_urlsafe(32) # match the existing-user path's CPU
+        _ = secrets.token_urlsafe(32)  # match the existing-user path's CPU
         return {'message': 'Password reset link sent'}
 
     # Generate reset token and expiry
@@ -488,7 +476,7 @@ async def forgot_password(
 
     # Send email
     background_tasks.add_task(send_password_reset_email, user.email, reset_token)
-    
+
     return {'message': 'Password reset link sent'}
 
 

@@ -1,0 +1,48 @@
+<div class="waitlist-form-container">
+  @if (state() === 'success') {
+    <!-- Replace the whole form on success. Shows the user an unambiguous
+         confirmation instead of leaving the input in place, which would
+         invite confused re-submissions. -->
+    <div class="waitlist-success" role="status" aria-live="polite">
+      <div class="check-icon" aria-hidden="true">✓</div>
+      <div>
+        <h4>{{ i18n.t('waitlist.success.title') }}</h4>
+        <p>{{ i18n.t('waitlist.success.body') }}</p>
+      </div>
+    </div>
+  } @else {
+    <form
+      class="waitlist-form"
+      (submit)="$event.preventDefault(); submit()"
+      novalidate
+    >
+      <input
+        type="email"
+        class="waitlist-input"
+        [placeholder]="i18n.t('waitlist.placeholder')"
+        [disabled]="state() === 'submitting'"
+        [value]="email()"
+        (input)="email.set($any($event.target).value)"
+        autocomplete="email"
+        required
+      />
+      <button
+        type="submit"
+        class="btn btn-on-dark waitlist-submit"
+        [disabled]="state() === 'submitting'"
+      >
+        {{ state() === 'submitting' ? i18n.t('waitlist.submitting') : i18n.t('waitlist.submit') }}
+        <span aria-hidden="true">→</span>
+      </button>
+    </form>
+
+    @if (state() === 'error') {
+      <p class="waitlist-error" role="alert">{{ errorMessage() }}</p>
+    }
+
+    <!-- GDPR-relevant micro-copy: establishes informed consent and names
+         the opt-out path. Keep this visible even during submitting — it's
+         part of the consent context, not a throwaway hint. -->
+    <p class="waitlist-consent">{{ i18n.t('waitlist.consent') }}</p>
+  }
+</div>
