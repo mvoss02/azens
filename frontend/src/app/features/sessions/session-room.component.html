@@ -7,9 +7,31 @@
     }
 
     @case ('joining') {
+      <!-- Two-phase wait:
+           1. Before WebRTC connects: "CONNECTING…" (~1-2s normally).
+           2. After WebRTC connects, before bot speaks: "WAITING FOR ALEX"
+              — the Pipecat Cloud container may be cold-starting (up to
+              15s). Transition from this view to 'connected' happens in
+              onBotStartedSpeaking so the user doesn't see a live-looking
+              room with a silent orb for the warmup. -->
       <div class="centered-state dark">
         <app-orb [size]="180" />
-        <p class="status-line mono">CONNECTING…</p>
+        <p class="status-line mono">
+          {{ webrtcConnected() ? 'WAITING FOR ALEX' : 'CONNECTING…' }}
+        </p>
+        @if (webrtcConnected()) {
+          <p class="joining-hint">
+            Fresh sessions can take up to 15 seconds to warm up.
+          </p>
+          <button
+            type="button"
+            class="joining-leave"
+            (click)="openLeaveConfirm()"
+            title="Leave without waiting"
+          >
+            Leave
+          </button>
+        }
       </div>
     }
 
@@ -29,14 +51,11 @@
 
         <div class="room-main">
           <app-orb [size]="240" />
-          <!-- Caption flips once onBotStartedSpeaking fires. The gap
-               between view='connected' and first speech can be 10-15s
-               on a cold PCC container (min_agents=0). Showing JOINING
-               there makes the wait feel like expected setup, not a
-               broken session. -->
-          <p class="bot-caption mono">
-            ALEX · {{ hasBotSpoken() ? 'INTERVIEWING' : 'JOINING…' }}
-          </p>
+          <!-- view='connected' is only reached after onBotStartedSpeaking
+               fires, so by the time this caption renders we're definitely
+               live with Alex. The cold-start wait shows on the joining
+               view instead. -->
+          <p class="bot-caption mono">ALEX · INTERVIEWING</p>
 
           @if (isCamOn()) {
             <div class="self-tile">

@@ -48,6 +48,38 @@
   max-width: 380px;
 }
 
+/* Shown during the "WAITING FOR ALEX" phase of the joining view —
+   explains the wait so the user doesn't think the app has frozen. */
+.joining-hint {
+  font-size: 12.5px;
+  color: rgba(232, 225, 206, 0.55);
+  max-width: 320px;
+  text-align: center;
+  margin: 0;
+}
+
+/* Escape hatch during cold-start: a small ghost button so the user
+   isn't trapped if the bot takes forever. Uses the existing leave-
+   confirm flow (openLeaveConfirm) for consistency with in-room Leave. */
+.joining-leave {
+  margin-top: var(--space-4);
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(232, 225, 206, 0.2);
+  background: transparent;
+  color: rgba(232, 225, 206, 0.75);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.joining-leave:hover {
+  background: rgba(232, 225, 206, 0.08);
+  color: rgba(232, 225, 206, 0.95);
+}
+
 /* ── Chips ──────────────────────────────────────────────────────────── */
 
 /* Shared between the room-top status chips and the "Back to sessions"

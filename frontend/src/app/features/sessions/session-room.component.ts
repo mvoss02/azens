@@ -79,12 +79,17 @@ export class SessionRoomComponent implements OnInit {
   readonly isMicOn = signal(true);
   readonly isCamOn = signal(false);
 
-  // Flips true the first time the bot speaks. Drives the caption in the
-  // room main view so the user sees "JOINING…" during the Pipecat Cloud
-  // cold-start window (can be 10-15s for a fresh container) rather than
-  // "INTERVIEWING" with nothing actually happening. Once true, stays true
-  // for the session lifetime.
+  // Flips true the first time the bot speaks. Gates the transition from
+  // the joining view into the full connected room UI — otherwise on a
+  // fresh Pipecat Cloud container (min_agents=0) the user would see the
+  // room chrome light up and the timer tick for 10–15s while Alex is
+  // still cold-starting. Once true, stays true for the session lifetime.
   readonly hasBotSpoken = signal(false);
+
+  // Tracks whether Daily's WebRTC handshake has completed. Drives the
+  // joining-view copy: "CONNECTING…" before, "WAITING FOR ALEX" after.
+  // The user sees clear stages instead of one long ambiguous spinner.
+  readonly webrtcConnected = signal(false);
 
   // Timer — ticks forward once connected.
   readonly elapsedSeconds = signal(0);
@@ -134,6 +139,14 @@ export class SessionRoomComponent implements OnInit {
   // ── Private non-reactive state (kept off the signal graph) ──────────
   private pipecatClient: PipecatClient | null = null;
   private timerIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  // Fallback timer for stuck cold-starts. If the bot never emits
+  // onBotStartedSpeaking (e.g., TTS initialization failed server-side),
+  // we'd otherwise be stuck on the joining view forever. After this
+  // deadline we flip to 'connected' anyway so the user at least gets the
+  // Leave button and can bail.
+  private warmingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private static readonly WARMING_FALLBACK_MS = 20_000;
 
   // In-room mic-level visualiser — separate getUserMedia from Pipecat's
   // own audio track. Fresh stream avoids reaching into SDK internals and
@@ -267,11 +280,16 @@ export class SessionRoomComponent implements OnInit {
         // session server-side and route the user to their feedback page
         // immediately, so they don't sit in an empty room.
         onBotDisconnected: () => this.onBotDisconnected(),
-        // First speaking event — flip the caption from "JOINING…" to
-        // "INTERVIEWING" so the user knows the bot is actually live.
-        // Fires on every bot turn after the first; guard in the handler.
+        // First speaking event — this is the real "Alex is live" moment.
+        // Flip the view from joining → connected here (not on WebRTC
+        // connect, which is ~10-15s too early on a cold container).
+        // Fires on every bot turn; guard so we only react once.
         onBotStartedSpeaking: () => {
-          if (!this.hasBotSpoken()) this.hasBotSpoken.set(true);
+          if (!this.hasBotSpoken()) {
+            this.hasBotSpoken.set(true);
+            this.clearWarmingTimeout();
+            this.view.set('connected');
+          }
         },
         onTrackStarted: (track, participant) => this.onTrackStarted(track, participant),
       },
@@ -290,7 +308,30 @@ export class SessionRoomComponent implements OnInit {
   }
 
   private onConnected(): void {
-    this.view.set('connected');
+    // WebRTC handshake done. But we DON'T flip view → 'connected' yet:
+    // on a cold PCC container the bot hasn't joined Daily yet and won't
+    // speak for another 10-15s. Staying on 'joining' (with updated copy)
+    // keeps the user from seeing the full room UI tick away silently.
+    // The view flip now lives in onBotStartedSpeaking.
+    this.webrtcConnected.set(true);
+
+    // Rejoin case: if hasBotSpoken was already set from the started_at
+    // check in handleSessionFetched (elapsed > 10s), the bot is long
+    // past its opener — skip the "waiting for Alex" screen and drop the
+    // user straight into the full room.
+    if (this.hasBotSpoken()) {
+      this.view.set('connected');
+    } else {
+      // Fallback: if the bot never speaks (TTS init failed, network weirdness),
+      // flip to connected after a deadline so the user can at least click
+      // Leave. Without this, stuck warming = stuck page.
+      this.warmingTimeoutId = setTimeout(() => {
+        if (!this.hasBotSpoken()) {
+          this.view.set('connected');
+        }
+      }, SessionRoomComponent.WARMING_FALLBACK_MS);
+    }
+
     // Kick off the user-facing mic-level meter. Non-fatal if it fails to
     // acquire a stream — the session still works, user just doesn't see
     // the feedback animation.
@@ -513,8 +554,16 @@ export class SessionRoomComponent implements OnInit {
     }
   }
 
+  private clearWarmingTimeout(): void {
+    if (this.warmingTimeoutId !== null) {
+      clearTimeout(this.warmingTimeoutId);
+      this.warmingTimeoutId = null;
+    }
+  }
+
   private cleanup(): void {
     this.stopTimer();
+    this.clearWarmingTimeout();
     this.stopRoomMicMeter();
     this.releaseWakeLock();
     // Release the remote audio element — leaving it in the DOM leaks
