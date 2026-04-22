@@ -4,7 +4,7 @@
     <h1>Start a session</h1>
   </div>
 
-  <form [formGroup]="form" (ngSubmit)="startSession()">
+  <form [formGroup]="form" (ngSubmit)="reviewSession()">
 
     <!-- Session type -->
     <div class="section">
@@ -119,12 +119,12 @@
       <div class="error-banner">{{ errorMessage() }}</div>
     }
 
-    <!-- Start button -->
+    <!-- Review & confirm button. Intentionally says "Review" rather than
+         "Start" — the real session doesn't begin until the next page. -->
     <button
       type="submit"
-      class="btn btn-primary start-btn"
-      [disabled]="isLoading()">
-      {{ isLoading() ? 'Starting...' : 'Start interview →' }}
+      class="btn btn-primary start-btn">
+      Review & start →
     </button>
 
   </form>

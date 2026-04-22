@@ -1,0 +1,50 @@
+@if (isOpen) {
+  <div
+    class="modal-backdrop"
+    (click)="onBackdropClick()"
+    role="presentation"
+  >
+    <div
+      class="modal-card"
+      (click)="$event.stopPropagation()"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="title"
+    >
+      <h2>{{ title }}</h2>
+
+      <!-- Body content from the caller. Scoped CSS here applies because
+           the modal uses ViewEncapsulation.None + .modal-card prefixing. -->
+      <div class="modal-body">
+        <ng-content></ng-content>
+      </div>
+
+      @if (emphasisText) {
+        <p class="modal-emphasis">{{ emphasisText }}</p>
+      }
+
+      @if (errorMessage) {
+        <p class="modal-error" role="alert">{{ errorMessage }}</p>
+      }
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="modal-btn-ghost"
+          (click)="onCancelClick()"
+          [disabled]="loading"
+        >
+          {{ cancelText }}
+        </button>
+        <button
+          type="button"
+          [class]="confirmStyle === 'danger' ? 'modal-btn-danger' : 'modal-btn-primary'"
+          (click)="onConfirmClick()"
+          [disabled]="loading"
+        >
+          {{ loading && confirmLoadingText ? confirmLoadingText : confirmText }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

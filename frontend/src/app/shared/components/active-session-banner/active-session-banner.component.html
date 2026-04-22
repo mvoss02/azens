@@ -1,0 +1,39 @@
+@if (live.liveSession(); as s) {
+  <div class="live-banner" role="status">
+    <div class="live-banner-icon" aria-hidden="true">
+      <span class="live-dot"></span>
+    </div>
+    <div class="live-banner-body">
+      <strong>You have a live {{ typeLabel(s.session_type) }} session.</strong>
+      <span class="live-banner-sub">
+        Rejoin to continue, or end it now — feedback is generated if you
+        spent enough time in the interview.
+      </span>
+    </div>
+    <div class="live-banner-actions">
+      <button type="button" class="live-btn live-btn-primary" (click)="rejoin()">
+        Rejoin
+      </button>
+      <button type="button" class="live-btn live-btn-ghost" (click)="openEndConfirm()">
+        End session
+      </button>
+    </div>
+  </div>
+}
+
+<app-confirm-modal
+  [isOpen]="endConfirmOpen()"
+  title="End this session?"
+  confirmText="Yes, end it"
+  confirmLoadingText="Ending…"
+  [loading]="isEnding()"
+  [errorMessage]="endError()"
+  (cancel)="closeEndConfirm()"
+  (confirm)="confirmEnd()"
+>
+  <p>
+    We'll close this session. If you spent enough time in the interview,
+    feedback will be generated from the captured transcript. Very short
+    sessions don't get a report - there isn't enough to work with.
+  </p>
+</app-confirm-modal>

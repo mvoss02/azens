@@ -2,7 +2,21 @@
   <div class="page-header">
     <div class="header-row">
       <h1>Sessions</h1>
-      <a routerLink="/app/sessions/new" class="btn btn-primary">New session →</a>
+      <!-- Block the New session entry point if a session is still live.
+           Router-link would happily route but then the setup guard
+           redirects back — avoid the flash by not rendering the link. -->
+      @if (live.hasLive()) {
+        <button
+          type="button"
+          class="btn btn-primary"
+          disabled
+          title="Finish or cancel your live session before starting another."
+        >
+          New session →
+        </button>
+      } @else {
+        <a routerLink="/app/sessions/new" class="btn btn-primary">New session →</a>
+      }
     </div>
     <p class="page-sub">Your interview history.</p>
   </div>
@@ -34,9 +48,31 @@
             @if (session.status === 'completed') {
               <a [routerLink]="['/app/feedback', session.id]" class="btn btn-ghost btn-sm">View feedback →</a>
             }
+            <button class="btn-delete" (click)="askDelete(session)">Delete</button>
           </div>
         </div>
       }
     </div>
   }
 </div>
+
+<!-- Delete-session confirmation — shared <app-confirm-modal>. -->
+<app-confirm-modal
+  [isOpen]="sessionPendingDelete() !== null"
+  title="Delete this session?"
+  confirmText="Yes, delete session"
+  confirmLoadingText="Deleting…"
+  [loading]="isDeleting()"
+  [errorMessage]="deleteError()"
+  emphasisText="This cannot be undone."
+  (cancel)="cancelDelete()"
+  (confirm)="confirmDelete()"
+>
+  @if (sessionPendingDelete(); as s) {
+    <p>
+      You're about to delete the <strong>{{ typeLabel(s.session_type) }}</strong>
+      session from <strong>{{ formatDate(s.created_at) }}</strong>. This will
+      permanently remove its transcript and feedback report.
+    </p>
+  }
+</app-confirm-modal>

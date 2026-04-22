@@ -1,0 +1,101 @@
+/* Sits inline above the page content (not position:fixed) so it pushes
+   the rest of the layout down instead of overlaying it. Matches the
+   visual language of <app-verify-banner> so the two can coexist
+   vertically without feeling mismatched. */
+
+.live-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 12px 18px;
+  margin-bottom: var(--space-4);
+  border-radius: var(--radius-md);
+  /* Amber-washed warm surface: communicates "something's live" without
+     the visual alarm of an error state. */
+  background: color-mix(in srgb, var(--color-amber) 18%, var(--color-bg-alt));
+  border: 1px solid color-mix(in srgb, var(--color-amber) 45%, transparent);
+  flex-wrap: wrap;
+}
+
+.live-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: rgba(232, 122, 58, 0.18);
+  flex-shrink: 0;
+}
+
+/* Pulsing amber dot — same visual cue as the LIVE chip in the session
+   room, so users recognise it as "something is broadcasting." */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--color-amber);
+  animation: live-banner-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes live-banner-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.85); }
+}
+
+.live-banner-body {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.live-banner-body strong {
+  font-size: 13.5px;
+  color: var(--color-text);
+}
+
+.live-banner-sub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.live-banner-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Buttons carry their own `live-` prefix so they don't collide with the
+   global .btn-primary / .btn-ghost used across the design system. */
+.live-btn {
+  padding: 7px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+
+.live-btn-primary {
+  background: var(--color-ink);
+  color: var(--color-bg);
+}
+
+.live-btn-primary:hover {
+  background: var(--color-text-muted);
+  transform: translateY(-1px);
+}
+
+.live-btn-ghost {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.live-btn-ghost:hover {
+  background: var(--color-bg-subtle);
+}

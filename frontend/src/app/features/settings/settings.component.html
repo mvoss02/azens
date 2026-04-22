@@ -59,30 +59,22 @@
   </div>
 </div>
 
-<!-- Delete-account confirmation modal -->
-@if (deleteConfirmOpen()) {
-  <div class="modal-backdrop" (click)="cancelDelete()">
-    <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="delete-title">
-      <h2 id="delete-title">Delete your account?</h2>
-      <p>
-        This permanently removes everything tied to your account (CVs, sessions,
-        transcripts, feedback reports, and your user record). Your active
-        subscription will be cancelled immediately and cannot be restored.
-      </p>
-      <p class="modal-emphasis">This cannot be undone.</p>
-
-      @if (deleteError()) {
-        <p class="modal-error">{{ deleteError() }}</p>
-      }
-
-      <div class="modal-actions">
-        <button type="button" class="btn-ghost" (click)="cancelDelete()" [disabled]="isDeleting()">
-          Cancel
-        </button>
-        <button type="button" class="btn-danger-confirm" (click)="confirmDelete()" [disabled]="isDeleting()">
-          {{ isDeleting() ? 'Deleting…' : 'Yes, delete my account' }}
-        </button>
-      </div>
-    </div>
-  </div>
-}
+<!-- Delete-account confirmation modal. Uses the shared <app-confirm-modal>
+     — body text projected, title/buttons/state via inputs. -->
+<app-confirm-modal
+  [isOpen]="deleteConfirmOpen()"
+  title="Delete your account?"
+  confirmText="Yes, delete my account"
+  confirmLoadingText="Deleting…"
+  [loading]="isDeleting()"
+  [errorMessage]="deleteError()"
+  emphasisText="This cannot be undone."
+  (cancel)="cancelDelete()"
+  (confirm)="confirmDelete()"
+>
+  <p>
+    This permanently removes everything tied to your account (CVs, sessions,
+    transcripts, feedback reports, and your user record). Your active
+    subscription will be cancelled immediately and cannot be restored.
+  </p>
+</app-confirm-modal>

@@ -1,0 +1,129 @@
+@if (payload(); as p) {
+  <div class="page">
+    <div class="page-header">
+      <p class="eyebrow">Review & confirm</p>
+      <h1>Ready to start your session?</h1>
+      <p class="page-sub">
+        Take a moment to check the settings below and make sure your mic is
+        picking up sound. Nothing's locked in until you confirm — if something
+        looks off, go back and adjust.
+      </p>
+    </div>
+
+    <!-- Summary card mirrors the setup page's visual language so the user
+         sees the same fields in the same order, just read-only. -->
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">Session type</span>
+        <span class="summary-value">{{ sessionTypeLabels[p.session_type] ?? p.session_type }}</span>
+      </div>
+
+      @if (p.session_type === 'cv_screen') {
+        <div class="summary-row">
+          <span class="summary-label">CV</span>
+          <span class="summary-value">{{ p.cv_filename ?? 'No CV selected' }}</span>
+        </div>
+      }
+
+      <div class="summary-row">
+        <span class="summary-label">Seniority</span>
+        <span class="summary-value">{{ seniorityLabels[p.seniority_level] ?? p.seniority_level }}</span>
+      </div>
+
+      <div class="summary-row">
+        <span class="summary-label">Language</span>
+        <span class="summary-value">{{ languageLabels[p.language] ?? p.language }}</span>
+      </div>
+
+      <div class="summary-row">
+        <span class="summary-label">Duration</span>
+        <span class="summary-value">{{ p.duration_minutes }} minutes</span>
+      </div>
+
+      <div class="summary-row personality-row">
+        <span class="summary-label">Interviewer style</span>
+        <div class="summary-value personality-value">
+          <strong>{{ personalityLabels[p.personality]?.label ?? p.personality }}</strong>
+          <span class="personality-desc">{{ personalityLabels[p.personality]?.desc }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Device check. Sits BEFORE the confirm button on purpose: the session
+         is only created — and the quota only decremented — when the user
+         clicks Confirm, which is gated on mic permission. A hardware fail
+         here costs nothing. -->
+    <div class="devices-card">
+      <h2 class="devices-title">Check your devices</h2>
+      <p class="devices-sub">
+        Make sure your mic is picking up sound. Camera is optional.
+      </p>
+
+      <div class="device-row">
+        <div class="device-label">Microphone</div>
+        @switch (micPermission()) {
+          @case ('unknown') {
+            <span class="device-state">Waiting for permission…</span>
+          }
+          @case ('granted') {
+            <div class="mic-meter" aria-hidden="true">
+              <div class="mic-meter-fill" [style.width.%]="micLevel() * 100"></div>
+            </div>
+            <span class="device-state ok">Ready</span>
+          }
+          @case ('denied') {
+            <span class="device-state error">
+              Mic access is required. Enable it in your browser and
+              <button type="button" class="link-btn" (click)="requestMicPermission()">retry</button>.
+            </span>
+          }
+        }
+      </div>
+
+      <div class="device-row">
+        <div class="device-label">Camera <span class="device-sub">(optional)</span></div>
+        @if (camPermission() === 'denied') {
+          <span class="device-state error">
+            Denied — we'll continue without camera.
+          </span>
+        } @else {
+          <button type="button" class="toggle-btn" (click)="requestCamPermission()">
+            {{ isCamOn() ? 'Turn camera off' : 'Turn camera on' }}
+          </button>
+        }
+      </div>
+
+      @if (isCamOn()) {
+        <div class="self-preview">
+          <video #selfVideo autoplay muted playsinline></video>
+        </div>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <div class="error-box" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="actions">
+      <!-- Back is pure client-side navigation — no backend calls, no cost.
+           The session doesn't exist yet. -->
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="goBack()"
+        [disabled]="isStarting()"
+      >
+        Back to settings
+      </button>
+      <button
+        type="button"
+        class="btn-primary"
+        (click)="confirm()"
+        [disabled]="!canConfirm()"
+        [title]="micPermission() !== 'granted' ? 'Allow mic access first' : ''"
+      >
+        {{ isStarting() ? 'Starting…' : 'Confirm & start' }}
+      </button>
+    </div>
+  </div>
+}

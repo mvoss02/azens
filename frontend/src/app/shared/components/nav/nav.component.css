@@ -27,18 +27,14 @@
 }
 
 .logo-mark {
+  /* Logo is now the PNG from /public. The file is already square with
+     transparent padding (see frontend/public/logo.png), so no extra
+     background or border-radius is needed — the logo's own shape governs
+     how it presents. object-fit:contain is belt-and-suspenders in case
+     the source ratio ever drifts. */
   width: 28px;
   height: 28px;
-  border-radius: 8px;
-  background: var(--color-ink);
-  color: var(--color-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 17px;
-  line-height: 1;
-  padding-top: 2px;
-  padding-left: 1px;
+  object-fit: contain;
 }
 
 .nav-center {

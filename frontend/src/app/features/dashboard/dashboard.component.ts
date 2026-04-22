@@ -1,7 +1,8 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { LiveSessionService } from '../../core/sessions/live-session.service';
 import { environment } from '../../../environments/environment';
 
 @Component({
@@ -12,6 +13,8 @@ import { environment } from '../../../environments/environment';
   styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
+  readonly live = inject(LiveSessionService);
+
   recentSessions = signal<any[]>([]);
   hasCv = signal(false);
   subscription = signal<any>(null);

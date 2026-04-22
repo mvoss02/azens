@@ -7,20 +7,41 @@
   <!-- Quick actions -->
   <div class="actions">
     @if (hasActiveSubscription()) {
-      <a routerLink="/app/sessions/new" [queryParams]="{type: 'cv_screen'}" class="action-card">
-        <div class="action-icon">◈</div>
-        <div>
-          <h3>CV Screening</h3>
-          <p>Get drilled on your CV by a senior interviewer</p>
+      <!-- Disable the quick-start cards while a live session is running.
+           The banner above already tells the user what to do; these cards
+           would otherwise route to /sessions/new which bounces back to
+           the live room anyway. -->
+      @if (live.hasLive()) {
+        <div class="action-card disabled" title="Finish or cancel your live session before starting another.">
+          <div class="action-icon">◈</div>
+          <div>
+            <h3>CV Screening</h3>
+            <p>Live session in progress — use the banner above.</p>
+          </div>
         </div>
-      </a>
-      <a routerLink="/app/sessions/new" [queryParams]="{type: 'knowledge_drill'}" class="action-card">
-        <div class="action-icon">⬡</div>
-        <div>
-          <h3>Knowledge Drill</h3>
-          <p>Test your technical finance knowledge</p>
+        <div class="action-card disabled" title="Finish or cancel your live session before starting another.">
+          <div class="action-icon">⬡</div>
+          <div>
+            <h3>Knowledge Drill</h3>
+            <p>Live session in progress — use the banner above.</p>
+          </div>
         </div>
-      </a>
+      } @else {
+        <a routerLink="/app/sessions/new" [queryParams]="{type: 'cv_screen'}" class="action-card">
+          <div class="action-icon">◈</div>
+          <div>
+            <h3>CV Screening</h3>
+            <p>Get drilled on your CV by a senior interviewer</p>
+          </div>
+        </a>
+        <a routerLink="/app/sessions/new" [queryParams]="{type: 'knowledge_drill'}" class="action-card">
+          <div class="action-icon">⬡</div>
+          <div>
+            <h3>Knowledge Drill</h3>
+            <p>Test your technical finance knowledge</p>
+          </div>
+        </a>
+      }
     } @else {
       <div class="action-card disabled">
         <div class="action-icon">◈</div>

@@ -20,6 +20,14 @@ class Settings(BaseSettings):
 
     zombie_grace_seconds: int = 60
 
+    # FEEDBACK
+    # If the user ends a session after less than this fraction of the scheduled
+    # duration (e.g. 0.10 → 3 min into a 30 min interview), skip GPT-4o feedback
+    # generation — there's not enough transcript for it to be useful, and the
+    # OpenAI call would be wasted. Raise this if you start seeing low-signal
+    # reports; lower it if users complain about "no feedback" on short tests.
+    feedback_min_session_fraction: float = 0.10
+
     # DB
     database_url: str
     secret_key: str

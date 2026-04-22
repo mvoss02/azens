@@ -6,83 +6,6 @@
       </div>
     }
 
-    @case ('lobby') {
-      <div class="lobby">
-        <div class="lobby-summary">
-          <p class="eyebrow">You're about to start</p>
-          <h1 class="lobby-title">{{ sessionTypeLabel() }}</h1>
-
-          <div class="summary-chips">
-            <span class="chip">{{ session()?.duration_minutes }} min</span>
-            <span class="chip">{{ languageLabel() }}</span>
-            <span class="chip">{{ seniorityLabel() }}</span>
-            @if (cvFilename()) {
-              <span class="chip">{{ cvFilename() }}</span>
-            }
-          </div>
-
-          <p class="final-check">
-            These are the settings you picked on the previous screen. Once you join,
-            they're locked — the session counts toward your monthly quota even if
-            you leave early.
-          </p>
-        </div>
-
-        <div class="lobby-devices">
-          <div class="device-row">
-            <div class="device-label">Microphone</div>
-            @switch (micPermission()) {
-              @case ('unknown') {
-                <span class="device-state">Waiting for permission…</span>
-              }
-              @case ('granted') {
-                <div class="mic-meter" aria-hidden="true">
-                  <div class="mic-meter-fill" [style.width.%]="micLevel() * 100"></div>
-                </div>
-                <span class="device-state ok">Ready</span>
-              }
-              @case ('denied') {
-                <span class="device-state error">
-                  Mic access is required. Enable it in your browser and
-                  <button type="button" class="link-btn" (click)="requestMicPermission()">retry</button>.
-                </span>
-              }
-            }
-          </div>
-
-          <div class="device-row">
-            <div class="device-label">Camera <span class="device-sub">(optional)</span></div>
-            @if (camPermission() === 'denied') {
-              <span class="device-state error">
-                Denied — continuing without camera.
-              </span>
-            } @else {
-              <button type="button" class="toggle-btn" (click)="requestCamPermission()">
-                {{ isCamOn() ? 'Turn camera off' : 'Turn camera on' }}
-              </button>
-            }
-          </div>
-
-          @if (isCamOn()) {
-            <div class="self-preview">
-              <video #selfVideo autoplay muted playsinline></video>
-            </div>
-          }
-        </div>
-
-        <div class="lobby-actions">
-          <button
-            type="button"
-            class="join-btn"
-            [disabled]="micPermission() !== 'granted'"
-            (click)="joinSession()"
-          >
-            Join interview
-          </button>
-        </div>
-      </div>
-    }
-
     @case ('joining') {
       <div class="centered-state dark">
         <app-orb [size]="180" />
@@ -116,10 +39,14 @@
         </div>
 
         <footer class="room-controls">
+          <!-- Mic button's glow intensity is driven by the live RMS level
+               (0 → 1). If the user is muted, force to 0 so there's no
+               misleading glow. CSS picks up --mic-level via box-shadow. -->
           <button
             type="button"
-            class="ctrl-btn"
+            class="ctrl-btn mic-btn"
             [class.off]="!isMicOn()"
+            [style.--mic-level]="isMicOn() ? micLevel() : 0"
             (click)="toggleMic()"
             [title]="isMicOn() ? 'Mute mic' : 'Unmute mic'"
           >
@@ -164,24 +91,22 @@
     }
   }
 
-  <!-- Leave confirm overlay -->
-  @if (leaveConfirmOpen()) {
-    <div class="modal-backdrop" (click)="cancelLeave()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <h2>Leave this session?</h2>
-        <p>
-          The session will end now and count toward your monthly quota.
-          Feedback will still be generated from what you've said so far.
-        </p>
-        <div class="modal-actions">
-          <button type="button" class="btn-ghost" (click)="cancelLeave()">
-            Stay in session
-          </button>
-          <button type="button" class="btn-danger" (click)="confirmLeave()">
-            Leave now
-          </button>
-        </div>
-      </div>
-    </div>
-  }
+  <!-- Leave confirm — shared <app-confirm-modal>. Copy is honest about
+       the 10%-threshold rule: long sessions still generate feedback when
+       you leave, short ones don't. No reason to punish someone who left
+       at 29:59 by withholding their report. -->
+  <app-confirm-modal
+    [isOpen]="leaveConfirmOpen()"
+    title="Leave this session?"
+    confirmText="Leave now"
+    cancelText="Stay in session"
+    (cancel)="cancelLeave()"
+    (confirm)="confirmLeave()"
+  >
+    <p>
+      The session will end now. If you spent more than a few minutes in the
+      interview, we'll still generate a feedback report from what you've said.
+      Very short sessions don't get a report — there isn't enough to work with.
+    </p>
+  </app-confirm-modal>
 </div>

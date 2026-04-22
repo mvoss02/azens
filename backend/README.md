@@ -94,8 +94,8 @@ pipecat cloud auth login
 Configure secrets
 
 ```sh
-pipecat cloud secrets set pipecat-<NAME>-secrets --file .env
 pipecat cloud secrets list # List secrets
+pipecat cloud secrets set pipecat-<NAME>-secrets --file .env
 ```
 
 Deploy agent (navigate to corresponding "server/" folder)
@@ -108,4 +108,13 @@ Test deployment
 
 ```sh
 pipecat cloud agent start <AGENT_NAME> --use-daily
+```
+
+## Create Cloudflare tunnel to foward requests from Pipecat to localhost
+
+Change .env and secrets of pipecat to the resulting URL
+
+```sh
+brew install cloudflared # to install
+cloudflared tunnel --url http://localhost:8080
 ```

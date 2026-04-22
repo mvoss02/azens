@@ -1,0 +1,127 @@
+/* Styles are ViewEncapsulation.None — every selector is prefixed with
+   .modal-backdrop or .modal-card so they can't leak onto anything else in
+   the app. Names are intentionally generic (.modal-btn-ghost etc.) rather
+   than piggy-backing on the global .btn-ghost so design-system buttons
+   never get their styles stomped. */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(21, 19, 17, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: var(--space-4);
+}
+
+.modal-card {
+  background: var(--color-bg-alt);
+  color: var(--color-text);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  max-width: 440px;
+  width: 100%;
+  box-shadow: var(--shadow-lift);
+  border: 1px solid var(--color-border);
+}
+
+.modal-card h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  margin: 0 0 var(--space-4);
+  color: var(--color-text);
+}
+
+/* Wrapping projected content in .modal-body lets us style the <p> tags
+   authors pass through without relying on ::ng-deep. Margins stay
+   consistent with the rest of the modal's rhythm. */
+.modal-card .modal-body p {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.modal-card .modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.modal-card .modal-emphasis {
+  color: var(--color-error);
+  font-weight: 500;
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: var(--space-3) 0 var(--space-6);
+}
+
+.modal-card .modal-error {
+  background: rgba(192, 57, 43, 0.08);
+  border: 1px solid rgba(192, 57, 43, 0.2);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--color-error);
+  margin: 0 0 var(--space-4);
+}
+
+.modal-card .modal-actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Button styles are scoped with their own modal-prefixed class names
+   (modal-btn-ghost / modal-btn-danger / modal-btn-primary) instead of
+   the generic .btn-* used elsewhere, so there's zero chance of the
+   modal's button styling leaking or being overridden by a global rule. */
+.modal-card .modal-btn-ghost,
+.modal-card .modal-btn-danger,
+.modal-card .modal-btn-primary {
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.modal-card .modal-btn-ghost {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.modal-card .modal-btn-ghost:hover:not(:disabled) {
+  background: var(--color-bg-subtle);
+}
+
+.modal-card .modal-btn-ghost:disabled,
+.modal-card .modal-btn-danger:disabled,
+.modal-card .modal-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.modal-card .modal-btn-danger {
+  background: var(--color-error);
+  color: var(--color-bg-alt);
+}
+
+.modal-card .modal-btn-danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.modal-card .modal-btn-primary {
+  background: var(--color-amber);
+  color: var(--color-ink);
+}
+
+.modal-card .modal-btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--color-amber-light);
+}

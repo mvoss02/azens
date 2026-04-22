@@ -16,6 +16,7 @@ import { Participant, PipecatClient } from '@pipecat-ai/client-js';
 import { DailyTransport } from '@pipecat-ai/daily-transport';
 import { environment } from '../../../environments/environment';
 import { OrbComponent } from '../../shared/components/orb/orb.component';
+import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
 
 interface SessionDetails {
   id: string;
@@ -38,9 +39,11 @@ interface CvItem {
   is_active: boolean;
 }
 
+// The lobby view is gone — the device check now lives on the confirm page,
+// BEFORE the session is created. By the time we land here, the session row
+// exists, Daily room is ready, and Pipecat is waiting. We just join.
 type View =
   | 'loading' // fetching /session/:id
-  | 'lobby' // asking permissions, showing pre-join summary
   | 'joining' // pipecat connect in flight
   | 'connected' // in the room, talking to the bot
   | 'ending' // user hit Leave, disconnect in flight
@@ -49,7 +52,7 @@ type View =
 @Component({
   selector: 'app-session-room',
   standalone: true,
-  imports: [CommonModule, OrbComponent],
+  imports: [CommonModule, OrbComponent, ConfirmModalComponent],
   templateUrl: './session-room.component.html',
   styleUrl: './session-room.component.css',
 })
@@ -67,13 +70,8 @@ export class SessionRoomComponent implements OnInit {
   readonly cvFilename = signal<string | null>(null);
   readonly errorMessage = signal('');
 
-  // Permission state. camPermission stays 'unknown' until the user clicks
-  // the camera toggle — we only ask for the prompt on demand, matching the
-  // "camera is optional" product decision.
-  readonly micPermission = signal<'unknown' | 'granted' | 'denied'>('unknown');
-  readonly camPermission = signal<'unknown' | 'granted' | 'denied'>('unknown');
-
-  // Drives the lobby mic-meter. 0..1 from the AnalyserNode RMS.
+  // Drives the in-room mic-level glow on the mic button. 0..1 from
+  // the AnalyserNode RMS.
   readonly micLevel = signal(0);
 
   // In-room controls
@@ -127,10 +125,26 @@ export class SessionRoomComponent implements OnInit {
 
   // ── Private non-reactive state (kept off the signal graph) ──────────
   private pipecatClient: PipecatClient | null = null;
-  private lobbyMediaStream: MediaStream | null = null;
-  private lobbyAudioContext: AudioContext | null = null;
-  private lobbyRafId: number | null = null;
   private timerIntervalId: ReturnType<typeof setInterval> | null = null;
+
+  // In-room mic-level visualiser — separate getUserMedia from Pipecat's
+  // own audio track. Fresh stream avoids reaching into SDK internals and
+  // doesn't re-prompt since mic was already granted on the confirm page.
+  private roomMicStream: MediaStream | null = null;
+  private roomAudioContext: AudioContext | null = null;
+  private roomRafId: number | null = null;
+
+  // Hidden <audio> element the bot's remote audio track is attached to.
+  // Daily + Pipecat Client JS in headless mode (no pre-built UI components)
+  // doesn't auto-render remote audio — we have to bind the MediaStreamTrack
+  // to an <audio> element for the browser to play it. Created lazily on
+  // the first remote audio track, torn down in cleanup.
+  private botAudioEl: HTMLAudioElement | null = null;
+
+  // Camera preference handed over from the confirm page via router state.
+  // Pipecat needs to know at construction time whether to request a
+  // camera. If state is missing (refresh / direct nav), default false.
+  private initialEnableCam = false;
 
   ngOnInit(): void {
     this.destroyRef.onDestroy(() => this.cleanup());
@@ -140,6 +154,10 @@ export class SessionRoomComponent implements OnInit {
       this.router.navigate(['/app/sessions']);
       return;
     }
+
+    const navState = history.state as { enable_cam?: boolean };
+    this.initialEnableCam = !!navState?.enable_cam;
+    this.isCamOn.set(this.initialEnableCam);
 
     this.http
       .get<SessionDetails>(`${environment.apiUrl}/session/${sessionId}`)
@@ -174,109 +192,25 @@ export class SessionRoomComponent implements OnInit {
       return;
     }
 
-    // Rejoin case: the bot is still running on the backend. Skip the lobby
-    // and drop the user straight into the room — their clock's already
-    // ticking and we don't want them wasting interview time on permissions.
+    // Rejoin case: if the session has been running, jump into the user's
+    // correct position on the timer. Otherwise treat as a fresh start at 0.
     if (s.status === 'active' && s.started_at) {
       const elapsed = Math.max(
         0,
         Math.floor((Date.now() - new Date(s.started_at).getTime()) / 1000),
       );
       this.elapsedSeconds.set(elapsed);
-      this.joinSession({ skipLobby: true });
-      return;
     }
 
-    // Fresh join — show the lobby, ask for mic upfront.
-    this.view.set('lobby');
-    this.requestMicPermission();
-  }
-
-  // ── Lobby: permissions, meter, preview ─────────────────────────────
-
-  async requestMicPermission(): Promise<void> {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.micPermission.set('granted');
-      this.attachLobbyMicMeter(stream);
-      this.lobbyMediaStream = this.lobbyMediaStream
-        ? this.mergeStreams(this.lobbyMediaStream, stream)
-        : stream;
-    } catch {
-      this.micPermission.set('denied');
-    }
-  }
-
-  async requestCamPermission(): Promise<void> {
-    // Toggle off if already running.
-    if (this.camPermission() === 'granted' && this.isCamOn()) {
-      this.stopLobbyCameraTracks();
-      this.isCamOn.set(false);
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      this.camPermission.set('granted');
-      this.isCamOn.set(true);
-      this.lobbyMediaStream = this.lobbyMediaStream
-        ? this.mergeStreams(this.lobbyMediaStream, stream)
-        : stream;
-      // Wait a tick for the @if to render the <video> element before binding.
-      setTimeout(() => {
-        if (this.selfVideoEl) {
-          this.selfVideoEl.nativeElement.srcObject = stream;
-        }
-      });
-    } catch {
-      this.camPermission.set('denied');
-    }
-  }
-
-  private attachLobbyMicMeter(stream: MediaStream): void {
-    // Build an AnalyserNode → read time-domain data each frame → compute RMS
-    // → map to 0..1. This drives the meter bar in the lobby so users can
-    // verify their mic is actually picking up sound.
-    const ctx = new AudioContext();
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 512;
-    source.connect(analyser);
-    this.lobbyAudioContext = ctx;
-
-    const buffer = new Uint8Array(analyser.frequencyBinCount);
-    const tick = () => {
-      analyser.getByteTimeDomainData(buffer);
-      // RMS around 128 (silent). Scale to 0..1 with some headroom.
-      let sum = 0;
-      for (const b of buffer) {
-        const v = (b - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / buffer.length);
-      this.micLevel.set(Math.min(1, rms * 4));
-      this.lobbyRafId = requestAnimationFrame(tick);
-    };
-    tick();
-  }
-
-  private stopLobbyCameraTracks(): void {
-    this.lobbyMediaStream?.getVideoTracks().forEach((t) => t.stop());
-    if (this.selfVideoEl) {
-      this.selfVideoEl.nativeElement.srcObject = null;
-    }
-  }
-
-  private mergeStreams(a: MediaStream, b: MediaStream): MediaStream {
-    const out = new MediaStream();
-    a.getTracks().forEach((t) => out.addTrack(t));
-    b.getTracks().forEach((t) => out.addTrack(t));
-    return out;
+    // Device check already happened on the confirm page. Go straight to
+    // joining — Pipecat will ask for mic if the browser somehow lost the
+    // permission (shouldn't happen; confirm just granted it).
+    void this.joinSession();
   }
 
   // ── Join / leave ───────────────────────────────────────────────────
 
-  async joinSession(opts: { skipLobby?: boolean } = {}): Promise<void> {
+  private async joinSession(): Promise<void> {
     const s = this.session();
     if (!s || !s.daily_room_url || !s.daily_token) {
       this.errorMessage.set('Session credentials are missing — please try again.');
@@ -284,17 +218,12 @@ export class SessionRoomComponent implements OnInit {
       return;
     }
 
-    // From lobby, release the preview streams — Pipecat will grab its own.
-    if (!opts.skipLobby) {
-      this.stopLobbyMedia();
-    }
-
     this.view.set('joining');
 
     this.pipecatClient = new PipecatClient({
       transport: new DailyTransport(),
       enableMic: true,
-      enableCam: this.isCamOn(),
+      enableCam: this.initialEnableCam,
       callbacks: {
         onConnected: () => this.onConnected(),
         onDisconnected: () => this.onDisconnected(),
@@ -323,6 +252,10 @@ export class SessionRoomComponent implements OnInit {
 
   private onConnected(): void {
     this.view.set('connected');
+    // Kick off the user-facing mic-level meter. Non-fatal if it fails to
+    // acquire a stream — the session still works, user just doesn't see
+    // the feedback animation.
+    void this.startRoomMicMeter();
     // Start the ticking timer. It reflects the user's clock, not the bot's
     // — bot-side wrap-up is independent.
     this.timerIntervalId = setInterval(() => {
@@ -336,6 +269,50 @@ export class SessionRoomComponent implements OnInit {
     }, 1000);
   }
 
+  private async startRoomMicMeter(): Promise<void> {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.roomMicStream = stream;
+
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      this.roomAudioContext = ctx;
+
+      const buffer = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteTimeDomainData(buffer);
+        let sum = 0;
+        for (const b of buffer) {
+          const v = (b - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / buffer.length);
+        this.micLevel.set(Math.min(1, rms * 4));
+        this.roomRafId = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      // Silent fallback: mic was already granted on the confirm page, so
+      // this should rarely fail. If it does, the glow just stays dark —
+      // not worth interrupting the interview with an error state.
+    }
+  }
+
+  private stopRoomMicMeter(): void {
+    if (this.roomRafId !== null) {
+      cancelAnimationFrame(this.roomRafId);
+      this.roomRafId = null;
+    }
+    this.roomAudioContext?.close().catch(() => {});
+    this.roomAudioContext = null;
+    this.roomMicStream?.getTracks().forEach((t) => t.stop());
+    this.roomMicStream = null;
+    this.micLevel.set(0);
+  }
+
   private onDisconnected(): void {
     // Transport dropped. If we weren't explicitly leaving, it's a failure.
     if (this.view() === 'connected') {
@@ -345,15 +322,45 @@ export class SessionRoomComponent implements OnInit {
   }
 
   private onTrackStarted(track: MediaStreamTrack, participant?: Participant): void {
-    // Only local video — we don't render bot video yet (Phase B / future).
-    if (!participant?.local || track.kind !== 'video') return;
-    // DOM may not have the <video #selfVideo> element yet if cam was just
-    // toggled on; defer to next tick so change detection has rendered it.
-    queueMicrotask(() => {
-      if (this.selfVideoEl) {
-        this.selfVideoEl.nativeElement.srcObject = new MediaStream([track]);
+    if (!participant) return;
+
+    // Remote audio → the bot talking. Attach to a hidden <audio> element so
+    // the browser plays it. Pipecat Client JS fetches the track via Daily's
+    // auto-subscribe but won't render it without a media element binding.
+    // Before this fix, the callback filtered to local video only and the
+    // bot's audio was silently dropped — user saw "Bot speaking" logs
+    // server-side but heard nothing.
+    if (!participant.local && track.kind === 'audio') {
+      if (!this.botAudioEl) {
+        this.botAudioEl = document.createElement('audio');
+        this.botAudioEl.autoplay = true;
+        this.botAudioEl.setAttribute('playsinline', 'true');
+        // Off-screen and invisible — the audio is all we need. Not removed
+        // from the DOM on purpose; hidden elements still produce sound.
+        this.botAudioEl.style.display = 'none';
+        document.body.appendChild(this.botAudioEl);
       }
-    });
+      this.botAudioEl.srcObject = new MediaStream([track]);
+      // play() may return a promise that rejects on browser autoplay-block.
+      // Fine to ignore the rejection — the user clicked Join right before
+      // this, which satisfies the user-gesture requirement on every modern
+      // browser. Log on failure just in case some weird environment blocks.
+      this.botAudioEl.play().catch((e) =>
+        console.warn('Bot audio autoplay blocked:', e),
+      );
+      return;
+    }
+
+    // Local video → self preview. Defer to next microtask because the DOM
+    // may not have the <video #selfVideo> element yet if cam was just
+    // toggled on.
+    if (participant.local && track.kind === 'video') {
+      queueMicrotask(() => {
+        if (this.selfVideoEl) {
+          this.selfVideoEl.nativeElement.srcObject = new MediaStream([track]);
+        }
+      });
+    }
   }
 
   openLeaveConfirm(): void {
@@ -375,6 +382,7 @@ export class SessionRoomComponent implements OnInit {
 
     this.view.set('ending');
     this.stopTimer();
+    this.stopRoomMicMeter();
 
     try {
       await this.pipecatClient?.disconnect();
@@ -382,6 +390,11 @@ export class SessionRoomComponent implements OnInit {
       // Non-fatal — server-side end call below is what matters.
     }
 
+    // Leave is a clean end of the session — NOT an error. The backend's
+    // /end logic handles the nuance: if the user did <10% of the scheduled
+    // duration, feedback is SKIPPED; otherwise feedback generates from
+    // whatever was captured. Someone bailing at 29:59 of 30:00 still gets
+    // their report — that's totally valid behaviour.
     this.http
       .post(`${environment.apiUrl}/session/${s.id}/end?error=false`, {})
       .subscribe({
@@ -415,20 +428,17 @@ export class SessionRoomComponent implements OnInit {
     }
   }
 
-  private stopLobbyMedia(): void {
-    if (this.lobbyRafId !== null) {
-      cancelAnimationFrame(this.lobbyRafId);
-      this.lobbyRafId = null;
-    }
-    this.lobbyAudioContext?.close().catch(() => {});
-    this.lobbyAudioContext = null;
-    this.lobbyMediaStream?.getTracks().forEach((t) => t.stop());
-    this.lobbyMediaStream = null;
-  }
-
   private cleanup(): void {
     this.stopTimer();
-    this.stopLobbyMedia();
+    this.stopRoomMicMeter();
+    // Release the remote audio element — leaving it in the DOM leaks
+    // media resources across navigations and can cause echo when the
+    // user enters a second session back-to-back.
+    if (this.botAudioEl) {
+      this.botAudioEl.srcObject = null;
+      this.botAudioEl.remove();
+      this.botAudioEl = null;
+    }
     // Best-effort — component is being destroyed anyway.
     this.pipecatClient?.disconnect().catch(() => {});
     this.pipecatClient = null;

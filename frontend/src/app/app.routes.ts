@@ -34,9 +34,11 @@ export const routes: Routes = [
           import('./features/sessions/session-setup.component').then(m => m.SessionSetupComponent),
       },
       {
-        path: 'sessions/:id/room',
+        // Client-side review page. Reads the session payload from router
+        // state — no backend call is made until the user confirms here.
+        path: 'sessions/confirm',
         loadComponent: () =>
-          import('./features/sessions/session-room.component').then(m => m.SessionRoomComponent),
+          import('./features/sessions/session-confirm.component').then(m => m.SessionConfirmComponent),
       },
       {
         path: 'cvs',
@@ -60,6 +62,16 @@ export const routes: Routes = [
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
+  },
+  {
+    // Session room is deliberately OUTSIDE the /app shell. The room takes
+    // the full viewport (no sidebar, no nav) so the user can focus on the
+    // interview. Still protected by authGuard — unauthenticated users get
+    // bounced to /auth/login, same as any /app/* route.
+    path: 'app/sessions/:id/room',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/sessions/session-room.component').then(m => m.SessionRoomComponent),
   },
   {
     path: 'admin',

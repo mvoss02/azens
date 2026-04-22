@@ -5,10 +5,12 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { environment } from '../../../environments/environment';
 
+import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
+
 @Component({
   selector: 'app-settings',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, ConfirmModalComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
 })

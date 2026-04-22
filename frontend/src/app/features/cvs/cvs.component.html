@@ -115,32 +115,23 @@
   </div>
 </div>
 
-<!-- Delete-CV confirmation modal. Mirrors the account-delete modal in
-     settings.component.html — if a third confirm modal appears, promote
-     these styles and this template to a shared component. -->
-@if (cvPendingDelete(); as cv) {
-  <div class="modal-backdrop" (click)="cancelDeleteCv()">
-    <div class="modal-card" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="delete-cv-title">
-      <h2 id="delete-cv-title">Delete this CV?</h2>
-      <p>
-        You're about to delete <strong>{{ cv.filename }}</strong>. Any sessions
-        that already used this CV will keep their transcripts and feedback,
-        but you won't be able to start new sessions from it.
-      </p>
-      <p class="modal-emphasis">This cannot be undone.</p>
-
-      @if (deleteError()) {
-        <p class="modal-error">{{ deleteError() }}</p>
-      }
-
-      <div class="modal-actions">
-        <button type="button" class="btn-ghost" (click)="cancelDeleteCv()" [disabled]="isDeleting()">
-          Cancel
-        </button>
-        <button type="button" class="btn-danger-confirm" (click)="confirmDeleteCv()" [disabled]="isDeleting()">
-          {{ isDeleting() ? 'Deleting…' : 'Yes, delete CV' }}
-        </button>
-      </div>
-    </div>
-  </div>
-}
+<!-- Delete-CV confirmation modal — shared <app-confirm-modal>. -->
+<app-confirm-modal
+  [isOpen]="cvPendingDelete() !== null"
+  title="Delete this CV?"
+  confirmText="Yes, delete CV"
+  confirmLoadingText="Deleting…"
+  [loading]="isDeleting()"
+  [errorMessage]="deleteError()"
+  emphasisText="This cannot be undone."
+  (cancel)="cancelDeleteCv()"
+  (confirm)="confirmDeleteCv()"
+>
+  @if (cvPendingDelete(); as cv) {
+    <p>
+      You're about to delete <strong>{{ cv.filename }}</strong>. Any sessions
+      that already used this CV will keep their transcripts and feedback,
+      but you won't be able to start new sessions from it.
+    </p>
+  }
+</app-confirm-modal>

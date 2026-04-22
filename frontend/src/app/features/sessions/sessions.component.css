@@ -66,3 +66,23 @@
 }
 
 .btn-sm { padding: 6px 14px; font-size: 12.5px; }
+
+/* Delete button in the session row. Matches the CVs-page .btn-delete —
+   pill-shaped, muted red, lifts to a bloodier tint on hover. Used inline
+   with the "View feedback" action so the two sit side-by-side. */
+.btn-delete {
+  font-size: 12.5px;
+  color: var(--color-error);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  transition: 0.15s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-delete:hover {
+  background: rgba(192, 57, 43, 0.06);
+}
+
+/* Delete-session modal moved to <app-confirm-modal>. */

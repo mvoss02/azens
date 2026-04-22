@@ -4,11 +4,18 @@ import { filter } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/auth/auth.service';
 import { VerifyBannerComponent } from '../verify-banner/verify-banner.component';
+import { ActiveSessionBannerComponent } from '../active-session-banner/active-session-banner.component';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, VerifyBannerComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    VerifyBannerComponent,
+    ActiveSessionBannerComponent,
+  ],
   templateUrl: './app-shell.component.html',
   styleUrl: './app-shell.component.css',
 })

@@ -1,7 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
+import { LiveSessionService } from '../../core/sessions/live-session.service';
 
 interface Session {
   id: string;
@@ -18,20 +20,78 @@ interface Session {
 @Component({
   selector: 'app-sessions',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ConfirmModalComponent],
   templateUrl: './sessions.component.html',
   styleUrl: './sessions.component.css',
 })
 export class SessionsComponent implements OnInit {
+  // Exposed to the template to grey out "New session" while a session is
+  // already live. Keeps the user from accidentally spinning up a second
+  // bot / Daily room (and wasting a quota slot).
+  readonly live = inject(LiveSessionService);
+
   sessions = signal<Session[]>([]);
   isLoading = signal(true);
+
+  // Delete-confirm modal state. Mirrors the CVs-page pattern: stash the
+  // pending-target in a single signal where `null` doubles as "modal
+  // closed." Two sibling signals guard against double-submit and surface
+  // inline errors without blowing away the modal on failure.
+  sessionPendingDelete = signal<Session | null>(null);
+  isDeleting = signal(false);
+  deleteError = signal('');
+
+  private readonly api = `${environment.apiUrl}/session`;
 
   constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.http.get<Session[]>(`${environment.apiUrl}/session/`).subscribe({
-      next: (s) => { this.sessions.set(s); this.isLoading.set(false); },
-      error: () => this.isLoading.set(false),
+    this.loadSessions();
+  }
+
+  // Silent refresh option mirrors the CVs page: used post-delete so the list
+  // doesn't flash into a "Loading…" state.
+  private loadSessions(opts: { silent?: boolean } = {}): void {
+    if (!opts.silent) this.isLoading.set(true);
+    this.http.get<Session[]>(`${this.api}/`).subscribe({
+      next: (s) => {
+        this.sessions.set(s);
+        if (!opts.silent) this.isLoading.set(false);
+      },
+      error: () => {
+        if (!opts.silent) this.isLoading.set(false);
+      },
+    });
+  }
+
+  askDelete(session: Session): void {
+    this.deleteError.set('');
+    this.sessionPendingDelete.set(session);
+  }
+
+  cancelDelete(): void {
+    // Block dismiss mid-request so the DELETE doesn't land while the user
+    // thinks they kept the row.
+    if (this.isDeleting()) return;
+    this.sessionPendingDelete.set(null);
+  }
+
+  confirmDelete(): void {
+    const s = this.sessionPendingDelete();
+    if (!s || this.isDeleting()) return;
+    this.isDeleting.set(true);
+
+    this.http.delete(`${this.api}/${s.id}`).subscribe({
+      next: () => {
+        this.sessionPendingDelete.set(null);
+        this.isDeleting.set(false);
+        this.loadSessions({ silent: true });
+      },
+      error: (err) => {
+        // Keep the modal open so the user can see why and retry.
+        this.isDeleting.set(false);
+        this.deleteError.set(err.error?.detail ?? 'Failed to delete session.');
+      },
     });
   }
 

@@ -22,7 +22,7 @@
 
   <aside class="sidebar" [class.is-open]="mobileNavOpen()">
     <a routerLink="/" class="sidebar-logo">
-      <span class="sidebar-logo-mark">𝒜</span>
+      <img src="logo.png" alt="Azens" class="sidebar-logo-mark" />
       <span>Azens</span>
     </a>
 
@@ -52,6 +52,7 @@
 
   <main class="shell-main">
     <app-verify-banner />
+    <app-active-session-banner />
     <router-outlet />
   </main>
 </div>

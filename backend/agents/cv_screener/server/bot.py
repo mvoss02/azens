@@ -47,6 +47,10 @@ from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
+from pipecatcloud.agent import (
+    DailySessionArguments,
+    PipecatSessionArguments,
+)
 
 load_dotenv(override=True)
 
@@ -277,6 +281,33 @@ async def bot(runner_args: RunnerArguments):
                     audio_in_enabled=True,
                     audio_in_filter=krisp_filter,
                     audio_out_enabled=True,
+                ),
+            )
+        case DailySessionArguments():
+            # Pipecat Cloud's specialised Daily wrapper. Same fields as
+            # DailyRunnerArguments, just from a different module.
+            transport = DailyTransport(
+                runner_args.room_url,
+                runner_args.token,
+                "Pipecat Bot",
+                params=DailyParams(
+                    audio_in_enabled=True, audio_in_filter=krisp_filter, audio_out_enabled=True
+                ),
+            )
+        case PipecatSessionArguments():
+            # Generic cloud session — PCC didn't set up a transport. Read the
+            # room URL + bot token the backend stuffed into `body`.
+            room_url = body.get("daily_room_url")
+            token = body.get("daily_token")
+            if not room_url:
+                logger.error("PipecatSessionArguments missing daily_room_url in body")
+                return
+            transport = DailyTransport(
+                room_url,
+                token,
+                "Pipecat Bot",
+                params=DailyParams(
+                    audio_in_enabled=True, audio_in_filter=krisp_filter, audio_out_enabled=True
                 ),
             )
         case SmallWebRTCRunnerArguments():

@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, signal, computed, ViewChild, ElementRef }
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
 
 type ParsingStatus = 'pending' | 'parsed' | 'failed';
 
@@ -22,7 +23,7 @@ interface Subscription {
 @Component({
   selector: 'app-cvs',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ConfirmModalComponent],
   templateUrl: './cvs.component.html',
   styleUrl: './cvs.component.css',
 })

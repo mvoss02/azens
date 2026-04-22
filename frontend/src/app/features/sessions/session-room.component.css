@@ -1,15 +1,9 @@
 :host {
   display: block;
-  /* Break out of the app-shell's padding — the room should feel immersive,
-     full-bleed dark background edge-to-edge. */
-  margin: -32px -36px;
-  min-height: calc(100vh - 0px);
-}
-
-@media (max-width: 768px) {
-  :host {
-    margin: -20px -16px;
-  }
+  /* Route is top-level (outside the /app shell) since the session room's
+     "focus mode" refactor. No negative margins needed to escape shell
+     padding — the host occupies the full viewport directly. */
+  min-height: 100vh;
 }
 
 .room-shell {
@@ -54,46 +48,11 @@
   max-width: 380px;
 }
 
-/* ── Lobby ──────────────────────────────────────────────────────────── */
+/* ── Chips ──────────────────────────────────────────────────────────── */
 
-.lobby {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: var(--space-16) var(--space-8) var(--space-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
-
-.lobby-summary {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  letter-spacing: 0.14em;
-  color: rgba(232, 225, 206, 0.55);
-  text-transform: uppercase;
-}
-
-.lobby-title {
-  font-family: var(--font-display);
-  font-size: 44px;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  color: rgba(232, 225, 206, 0.95);
-  margin: 0;
-}
-
-.summary-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
+/* Shared between the room-top status chips and the "Back to sessions"
+   error-state button. Kept here (not under .room-top) because the error
+   view uses .join-btn too and references the same dark-bg palette. */
 .chip {
   display: inline-flex;
   align-items: center;
@@ -107,123 +66,9 @@
   font-family: var(--font-mono);
 }
 
-.final-check {
-  font-size: 13px;
-  line-height: 1.55;
-  color: rgba(232, 225, 206, 0.6);
-  max-width: 520px;
-}
-
-/* Devices block */
-
-.lobby-devices {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-6);
-  background: rgba(232, 225, 206, 0.04);
-  border: 1px solid rgba(232, 225, 206, 0.08);
-  border-radius: var(--radius-lg);
-}
-
-.device-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.device-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(232, 225, 206, 0.85);
-  min-width: 110px;
-}
-
-.device-sub {
-  font-weight: 400;
-  color: rgba(232, 225, 206, 0.5);
-  font-size: 12px;
-}
-
-.device-state {
-  font-size: 12.5px;
-  color: rgba(232, 225, 206, 0.6);
-}
-
-.device-state.ok {
-  color: var(--color-success);
-}
-
-.device-state.error {
-  color: var(--color-error);
-}
-
-/* Mic meter: 0..1 signal width */
-
-.mic-meter {
-  flex: 1;
-  height: 6px;
-  background: rgba(232, 225, 206, 0.1);
-  border-radius: 99px;
-  overflow: hidden;
-  min-width: 120px;
-}
-
-.mic-meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-sage), var(--color-amber));
-  transition: width 60ms linear;
-}
-
-/* Buttons */
-
-.toggle-btn,
-.link-btn {
-  background: none;
-  color: var(--color-amber);
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.toggle-btn {
-  padding: 6px 14px;
-  border: 1px solid rgba(232, 225, 206, 0.2);
-  border-radius: var(--radius-pill);
-  text-decoration: none;
-  color: rgba(232, 225, 206, 0.85);
-}
-
-.toggle-btn:hover {
-  border-color: var(--color-amber);
-  color: var(--color-amber);
-}
-
-.self-preview {
-  margin-top: var(--space-3);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  max-width: 320px;
-}
-
-.self-preview video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1); /* Mirror — feels like a mirror, not a camera */
-}
-
-.lobby-actions {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: var(--space-4);
-}
-
+/* Kept for the error view's "Back to sessions" button. No other callers
+   after the lobby was removed — worth renaming to .back-to-sessions-btn
+   when you're next in this file, but not blocking. */
 .join-btn {
   background: var(--color-amber);
   color: var(--color-ink);
@@ -366,6 +211,18 @@
   border-color: rgba(232, 225, 206, 0.12);
 }
 
+/* Mic-level glow. --mic-level is bound per-frame from the component's
+   micLevel signal (0..1). The shadow radius and alpha scale with it, so
+   a quiet mic shows no glow and a loud mic pulses amber. When muted
+   we force the variable to 0, killing the glow. */
+.mic-btn {
+  --mic-level: 0;
+  box-shadow:
+    0 0 calc(18px * var(--mic-level))
+    rgba(232, 122, 58, calc(0.7 * var(--mic-level)));
+  transition: box-shadow 80ms linear, background var(--transition);
+}
+
 .ctrl-btn.leave {
   border-color: rgba(192, 57, 43, 0.4);
   color: #f2a29a;
@@ -376,76 +233,4 @@
   border-color: rgba(192, 57, 43, 0.6);
 }
 
-/* ── Leave confirm modal ────────────────────────────────────────────── */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(21, 19, 17, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: var(--space-4);
-}
-
-.modal-card {
-  background: var(--color-bg-alt);
-  color: var(--color-text);
-  border-radius: var(--radius-lg);
-  padding: var(--space-8);
-  max-width: 420px;
-  width: 100%;
-  box-shadow: var(--shadow-lift);
-}
-
-.modal-card h2 {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 400;
-  margin: 0 0 var(--space-3);
-}
-
-.modal-card p {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--color-text-muted);
-  margin: 0 0 var(--space-6);
-}
-
-.modal-actions {
-  display: flex;
-  gap: var(--space-3);
-  justify-content: flex-end;
-}
-
-.btn-ghost,
-.btn-danger {
-  padding: 9px 18px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.btn-ghost {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.btn-ghost:hover {
-  background: var(--color-bg-subtle);
-}
-
-.btn-danger {
-  background: var(--color-error);
-  color: var(--color-bg-alt);
-  border: none;
-}
-
-.btn-danger:hover {
-  filter: brightness(1.1);
-}
+/* Leave confirm modal moved to <app-confirm-modal>. */

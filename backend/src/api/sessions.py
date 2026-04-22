@@ -4,7 +4,9 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import func, select
+from models.feedback import Feedback
+from models.transcript import Transcript
+from sqlalchemy import delete as sql_delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import get_current_user_id, get_subscribed_user_id
@@ -13,6 +15,7 @@ from core.database import get_db
 from models.cv import CV
 from models.enums import (
     CVParsingStatus,
+    FeedbackStatus,
     Language,
     SeniorityLevel,
     SessionDuration,
@@ -146,8 +149,13 @@ async def start_session(
         meeting_room_dict = await create_room(
             expires_in_seconds=body.duration_minutes.value * 60 + 600
         )
-        token = await create_meeting_token(
-            room_name=meeting_room_dict['name'], user_name=str(user_id)
+        user_token, bot_token = await asyncio.gather(
+            create_meeting_token(
+                room_name=meeting_room_dict['name'], user_name=str(user_id)
+            ),
+            create_meeting_token(
+                room_name=meeting_room_dict['name'], user_name='Alex (Interviewer)'
+            ),
         )
     except Exception as e:
         new_sess.status = SessionStatus.ERROR
@@ -158,7 +166,7 @@ async def start_session(
 
     new_sess.daily_room_name = meeting_room_dict['name']
     new_sess.daily_room_url = meeting_room_dict['url']
-    new_sess.daily_token = token
+    new_sess.daily_token = user_token
     await db.flush()
 
     # Call bot
@@ -183,6 +191,8 @@ async def start_session(
             'session_id': str(new_sess.id),
             'backend_url': settings_sessions.backend_url,
             'service_api_key': settings_sessions.service_api_key,
+            'daily_room_url': meeting_room_dict['url'],
+            'daily_token': bot_token,
         }
 
         try:
@@ -227,13 +237,41 @@ async def end_session(
     if not curr_sess:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
 
+    now = datetime.now(UTC)
+
+    # Did the user actually interview long enough for feedback to be worth
+    # generating? We gate on a fraction of the scheduled duration rather than
+    # a fixed minute count so a 90-min superday and a 15-min warm-up both get
+    # sensible thresholds. `started_at` can be None if the bot never connected
+    # — in that case nothing happened to give feedback on.
+    scheduled_seconds = curr_sess.duration_minutes.value * 60
+    actual_seconds = (
+        (now - curr_sess.started_at).total_seconds() if curr_sess.started_at else 0
+    )
+    min_seconds = scheduled_seconds * settings_sessions.feedback_min_session_fraction
+    too_short = actual_seconds < min_seconds
+
     if error:
         curr_sess.status = SessionStatus.ERROR
+        curr_sess.feedback_status = FeedbackStatus.SKIPPED
+    elif too_short:
+        # Ended cleanly but barely talked — mark complete, skip feedback.
+        # Log it so we can see how often this trips (might want to tune the
+        # threshold if it fires for real sessions).
+        logger.info(
+            'end_session skipping feedback session_id=%s actual_s=%.1f min_s=%.1f',
+            session_id,
+            actual_seconds,
+            min_seconds,
+        )
+        curr_sess.status = SessionStatus.COMPLETED
+        curr_sess.feedback_status = FeedbackStatus.SKIPPED
     else:
         curr_sess.status = SessionStatus.COMPLETED
+        curr_sess.feedback_status = FeedbackStatus.PENDING
         background_tasks.add_task(generate_and_save_feedback, session_id)
 
-    curr_sess.ended_at = datetime.now(UTC)
+    curr_sess.ended_at = now
 
     await db.flush()
     await db.refresh(curr_sess)
@@ -333,3 +371,36 @@ async def get_session(
     await db.flush()
     await db.refresh(curr_sess)
     return curr_sess
+
+@router.delete('/{session_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(
+    session_id: UUID,
+    user_id: UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    # Scope by user_id to prevent cross-user delete via UUID guessing.
+    # SQLAlchemy filters use comma-separated conditions (implicit AND) —
+    # Python's `and` short-circuits and discards the first clause, which
+    # silently lets the WHERE match any session owned by the user.
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == user_id,
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
+
+    # Bulk-delete children via DELETE statements rather than fetching +
+    # looping. Transcript has N rows per session (one per turn) so a
+    # scalar_one_or_none would crash on any real session. Feedback has 0
+    # or 1 — also handled cleanly by a bulk delete (no-op if absent).
+    await db.execute(
+        sql_delete(Transcript).where(Transcript.session_id == session_id)
+    )
+    await db.execute(
+        sql_delete(Feedback).where(Feedback.session_id == session_id)
+    )
+    await db.delete(session)
+    await db.commit()
