@@ -28,8 +28,6 @@ export class ActiveSessionBannerComponent {
   // which may still produce a feedback report if enough time was spent
   // in the interview (per the backend's 10% threshold rule).
   endConfirmOpen = signal(false);
-  isEnding = signal(false);
-  endError = signal('');
 
   typeLabel(type: string | undefined): string {
     if (!type) return 'session';
@@ -48,31 +46,33 @@ export class ActiveSessionBannerComponent {
   }
 
   openEndConfirm(): void {
-    this.endError.set('');
     this.endConfirmOpen.set(true);
   }
 
   closeEndConfirm(): void {
-    if (this.isEnding()) return;
     this.endConfirmOpen.set(false);
   }
 
   confirmEnd(): void {
     const s = this.live.liveSession();
-    if (!s || this.isEnding()) return;
-    this.isEnding.set(true);
+    if (!s) return;
+
+    // Fire-and-forget: close the modal + clear the banner immediately so
+    // the user isn't stuck staring at an "Ending…" button while the POST
+    // finishes. The endpoint itself is fast, but the user explicitly
+    // asked for "do this in the background when they click yes."
+    //
+    // If the POST somehow fails, the next /session/ refresh (fires on
+    // every /app/* navigation) re-surfaces the banner and the user can
+    // try again. We also eagerly refresh on error to surface that faster
+    // without waiting for the next navigation.
+    this.endConfirmOpen.set(false);
+    this.live.clearLocal();
 
     this.live.endSession(s.id).subscribe({
-      next: () => {
-        this.isEnding.set(false);
-        this.endConfirmOpen.set(false);
-        // Optimistic clear so the banner disappears immediately. Next
-        // navigation re-fetches and the server confirms.
-        this.live.clearLocal();
-      },
       error: (err) => {
-        this.isEnding.set(false);
-        this.endError.set(err.error?.detail ?? 'Failed to end session.');
+        console.warn('endSession background POST failed:', err);
+        this.live.refresh();
       },
     });
   }

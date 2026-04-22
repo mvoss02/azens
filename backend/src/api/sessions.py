@@ -274,6 +274,12 @@ async def end_session(
     curr_sess.ended_at = now
 
     await db.flush()
+    # Explicit commit: without it, get_db's post-yield commit runs AFTER the
+    # response is sent. The frontend's follow-up /session/ GET (triggered on
+    # the next navigation) would then race the commit and see the old
+    # ACTIVE state — making the live-session banner reappear after the user
+    # thought they'd ended the session.
+    await db.commit()
     await db.refresh(curr_sess)
 
     return curr_sess

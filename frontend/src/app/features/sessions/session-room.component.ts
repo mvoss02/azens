@@ -46,7 +46,6 @@ type View =
   | 'loading' // fetching /session/:id
   | 'joining' // pipecat connect in flight
   | 'connected' // in the room, talking to the bot
-  | 'ending' // user hit Leave, disconnect in flight
   | 'error'; // unrecoverable setup failure
 
 @Component({
@@ -77,6 +76,13 @@ export class SessionRoomComponent implements OnInit {
   // In-room controls
   readonly isMicOn = signal(true);
   readonly isCamOn = signal(false);
+
+  // Flips true the first time the bot speaks. Drives the caption in the
+  // room main view so the user sees "JOINING…" during the Pipecat Cloud
+  // cold-start window (can be 10-15s for a fresh container) rather than
+  // "INTERVIEWING" with nothing actually happening. Once true, stays true
+  // for the session lifetime.
+  readonly hasBotSpoken = signal(false);
 
   // Timer — ticks forward once connected.
   readonly elapsedSeconds = signal(0);
@@ -141,6 +147,14 @@ export class SessionRoomComponent implements OnInit {
   // the first remote audio track, torn down in cleanup.
   private botAudioEl: HTMLAudioElement | null = null;
 
+  // Screen Wake Lock — keeps the display awake during an interview so the
+  // user's laptop doesn't dim or hit the lock screen mid-session. Supported
+  // in Chrome/Edge/Safari 16.4+; Firefox requires a flag. We degrade
+  // silently on unsupported browsers — a 30-min interview is long enough
+  // for the screen saver to matter but short enough that "oh my screen
+  // dimmed" is recoverable if the API happens to be absent.
+  private wakeLock: WakeLockSentinel | null = null;
+
   // Camera preference handed over from the confirm page via router state.
   // Pipecat needs to know at construction time whether to request a
   // camera. If state is missing (refresh / direct nav), default false.
@@ -192,14 +206,25 @@ export class SessionRoomComponent implements OnInit {
       return;
     }
 
-    // Rejoin case: if the session has been running, jump into the user's
-    // correct position on the timer. Otherwise treat as a fresh start at 0.
-    if (s.status === 'active' && s.started_at) {
+    // Rejoin case: if the session has already been running, jump into the
+    // user's correct position on the timer. We gate on `started_at` alone
+    // rather than `status === 'active'` because the backend doesn't
+    // explicitly flip PENDING → ACTIVE anywhere — a bot-started session
+    // stays PENDING + started_at=<timestamp>. The banner detects both
+    // states as "live", and so do we here. Without this fix, rejoining a
+    // PENDING session starts the clock from 0.
+    if (s.started_at) {
       const elapsed = Math.max(
         0,
         Math.floor((Date.now() - new Date(s.started_at).getTime()) / 1000),
       );
       this.elapsedSeconds.set(elapsed);
+      // If we're arriving >10s into the session, this is a rejoin — the
+      // bot has been talking without us. Skip the JOINING caption; the
+      // interview is already in progress from the server's perspective.
+      if (elapsed > 10) {
+        this.hasBotSpoken.set(true);
+      }
     }
 
     // Device check already happened on the confirm page. Go straight to
@@ -234,6 +259,18 @@ export class SessionRoomComponent implements OnInit {
           this.errorMessage.set(d?.error ?? 'Session error');
           this.view.set('error');
         },
+        // Bot voluntarily left the Daily room — this is how a graceful end
+        // from the bot side looks (EndFrame → pipeline teardown → bot
+        // leaves). Treat it as the natural end of the interview: stop the
+        // session server-side and route the user to their feedback page
+        // immediately, so they don't sit in an empty room.
+        onBotDisconnected: () => this.onBotDisconnected(),
+        // First speaking event — flip the caption from "JOINING…" to
+        // "INTERVIEWING" so the user knows the bot is actually live.
+        // Fires on every bot turn after the first; guard in the handler.
+        onBotStartedSpeaking: () => {
+          if (!this.hasBotSpoken()) this.hasBotSpoken.set(true);
+        },
         onTrackStarted: (track, participant) => this.onTrackStarted(track, participant),
       },
     });
@@ -256,14 +293,22 @@ export class SessionRoomComponent implements OnInit {
     // acquire a stream — the session still works, user just doesn't see
     // the feedback animation.
     void this.startRoomMicMeter();
+    // Ask the browser to keep the screen on. Fails silently on unsupported
+    // browsers or if the page isn't visible at request time; we re-try on
+    // visibilitychange below so the lock can be re-acquired if the user
+    // tabs away and comes back.
+    void this.acquireWakeLock();
     // Start the ticking timer. It reflects the user's clock, not the bot's
     // — bot-side wrap-up is independent.
     this.timerIntervalId = setInterval(() => {
       this.elapsedSeconds.update((s) => s + 1);
-      // Hard-stop safety: if we're somehow past the zombie deadline with no
-      // bot-side end, the room stops counting. The backend will auto-end
-      // the session on the next /session/:id read.
-      if (this.elapsedSeconds() >= this.durationSeconds() + 60) {
+      // Hard-stop safety: if we're past the scheduled duration by 30s AND
+      // haven't seen onBotDisconnected yet, something went wrong on the
+      // bot side. 30s is generous enough for the bot's goodbye TTS
+      // (~10-15s) plus Daily's teardown (~5s), but snappy enough that
+      // the user doesn't sit in silence forever. onBotDisconnected handles
+      // the happy path; this is pure safety net.
+      if (this.elapsedSeconds() >= this.durationSeconds() + 30) {
         this.leaveSession();
       }
     }, 1000);
@@ -301,6 +346,33 @@ export class SessionRoomComponent implements OnInit {
     }
   }
 
+  private async acquireWakeLock(): Promise<void> {
+    // Browser support: WakeLock is gated behind navigator.wakeLock. Some
+    // privacy-mode contexts (incognito, iframes without permissions) won't
+    // expose it. Silent degrade.
+    const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinel> } };
+    if (!nav.wakeLock) return;
+
+    try {
+      this.wakeLock = await nav.wakeLock.request('screen');
+      // The OS can release the lock unilaterally — e.g. the user manually
+      // locked the laptop, or the tab went background for too long. Clear
+      // our reference so the next reacquire attempt isn't a no-op.
+      this.wakeLock.addEventListener('release', () => {
+        this.wakeLock = null;
+      });
+    } catch {
+      // Common fail reasons: tab not visible, browser policy. Nothing we
+      // can do — the user will notice a dimming screen and we can't block
+      // the interview over it.
+    }
+  }
+
+  private releaseWakeLock(): void {
+    this.wakeLock?.release().catch(() => {});
+    this.wakeLock = null;
+  }
+
   private stopRoomMicMeter(): void {
     if (this.roomRafId !== null) {
       cancelAnimationFrame(this.roomRafId);
@@ -319,6 +391,15 @@ export class SessionRoomComponent implements OnInit {
       this.errorMessage.set('Connection lost. Please rejoin.');
       this.view.set('error');
     }
+  }
+
+  private onBotDisconnected(): void {
+    // Bot left the Daily room of its own accord — usually means the
+    // interview ran to completion (duration timer fired EndFrame on the
+    // bot side). Flow is identical to user-initiated Leave; delegate so
+    // the teardown logic doesn't drift between the two paths.
+    if (this.view() !== 'connected') return;
+    this.leaveSession();
   }
 
   private onTrackStarted(track: MediaStreamTrack, participant?: Participant): void {
@@ -371,36 +452,32 @@ export class SessionRoomComponent implements OnInit {
     this.leaveConfirmOpen.set(false);
   }
 
-  async confirmLeave(): Promise<void> {
+  confirmLeave(): void {
     this.leaveConfirmOpen.set(false);
-    await this.leaveSession();
+    this.leaveSession();
   }
 
-  private async leaveSession(): Promise<void> {
+  private leaveSession(): void {
     const s = this.session();
     if (!s) return;
 
-    this.view.set('ending');
     this.stopTimer();
     this.stopRoomMicMeter();
+    this.releaseWakeLock();
 
-    try {
-      await this.pipecatClient?.disconnect();
-    } catch {
-      // Non-fatal — server-side end call below is what matters.
-    }
-
-    // Leave is a clean end of the session — NOT an error. The backend's
-    // /end logic handles the nuance: if the user did <10% of the scheduled
-    // duration, feedback is SKIPPED; otherwise feedback generates from
-    // whatever was captured. Someone bailing at 29:59 of 30:00 still gets
-    // their report — that's totally valid behaviour.
+    // Both calls are fire-and-forget. Pipecat disconnect can take 10-60+
+    // seconds over bad networks; the destroyRef cleanup hook covers us.
+    // The /end POST is fast but we navigate BEFORE awaiting its response
+    // so the user never stares at a "WRAPPING UP…" screen. The feedback
+    // page polls /session/:id every 5s, so whichever status it first
+    // sees (ACTIVE → COMPLETED → GENERATED) will converge correctly.
+    this.pipecatClient?.disconnect().catch(() => {});
     this.http
       .post(`${environment.apiUrl}/session/${s.id}/end?error=false`, {})
-      .subscribe({
-        next: () => this.router.navigate(['/app/feedback', s.id]),
-        error: () => this.router.navigate(['/app/feedback', s.id]),
-      });
+      .subscribe({ error: () => {} });
+
+    // Navigate immediately. Feedback page handles the pending state.
+    this.router.navigate(['/app/feedback', s.id]);
   }
 
   // ── Mic / cam toggles in-room ──────────────────────────────────────
@@ -431,6 +508,7 @@ export class SessionRoomComponent implements OnInit {
   private cleanup(): void {
     this.stopTimer();
     this.stopRoomMicMeter();
+    this.releaseWakeLock();
     // Release the remote audio element — leaving it in the DOM leaks
     // media resources across navigations and can cause echo when the
     // user enters a second session back-to-back.

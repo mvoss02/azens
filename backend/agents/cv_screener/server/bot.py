@@ -139,7 +139,13 @@ async def run_bot(transport: BaseTransport, body: dict):
         user_params=LLMUserAggregatorParams(
             vad_analyzer=SileroVADAnalyzer(
                 params=VADParams(
-                    stop_secs=0.8,  # wait longer — candidates pause to think
+                    # Silence duration that ends a user turn. 0.8s felt slow
+                    # in testing — perceptible gap between finishing a
+                    # sentence and the bot replying. 0.6s is snappier and
+                    # still accommodates a normal mid-thought breath (those
+                    # are typically 200-400ms). If candidates start getting
+                    # interrupted mid-sentence, raise to 0.7.
+                    stop_secs=0.6,
                     confidence=0.7,
                 )
             ),

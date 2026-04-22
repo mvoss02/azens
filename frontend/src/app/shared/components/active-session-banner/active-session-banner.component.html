@@ -21,13 +21,13 @@
   </div>
 }
 
+<!-- No loading/error state bindings: confirmEnd() is fire-and-forget and
+     closes the modal before the POST returns. If the POST fails in the
+     background, the service's next refresh re-surfaces the banner. -->
 <app-confirm-modal
   [isOpen]="endConfirmOpen()"
   title="End this session?"
   confirmText="Yes, end it"
-  confirmLoadingText="Ending…"
-  [loading]="isEnding()"
-  [errorMessage]="endError()"
   (cancel)="closeEndConfirm()"
   (confirm)="confirmEnd()"
 >

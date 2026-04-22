@@ -29,7 +29,14 @@
 
         <div class="room-main">
           <app-orb [size]="240" />
-          <p class="bot-caption mono">ALEX · INTERVIEWING</p>
+          <!-- Caption flips once onBotStartedSpeaking fires. The gap
+               between view='connected' and first speech can be 10-15s
+               on a cold PCC container (min_agents=0). Showing JOINING
+               there makes the wait feel like expected setup, not a
+               broken session. -->
+          <p class="bot-caption mono">
+            ALEX · {{ hasBotSpoken() ? 'INTERVIEWING' : 'JOINING…' }}
+          </p>
 
           @if (isCamOn()) {
             <div class="self-tile">
@@ -75,12 +82,6 @@
       </div>
     }
 
-    @case ('ending') {
-      <div class="centered-state dark">
-        <p class="status-line mono">WRAPPING UP…</p>
-      </div>
-    }
-
     @case ('error') {
       <div class="centered-state">
         <p class="status-line error">{{ errorMessage() }}</p>
@@ -106,7 +107,7 @@
     <p>
       The session will end now. If you spent more than a few minutes in the
       interview, we'll still generate a feedback report from what you've said.
-      Very short sessions don't get a report — there isn't enough to work with.
+      Very short sessions don't get a report - there isn't enough to work with.
     </p>
   </app-confirm-modal>
 </div>
