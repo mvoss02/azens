@@ -309,7 +309,37 @@ async def get_sessions(
         query = query.where(Session.duration_minutes == duration_minutes)
 
     result = await db.execute(query)
-    return result.scalars().all()
+    sessions = result.scalars().all()
+
+    # Opportunistic zombie cleanup. If a session looks "live" (PENDING or
+    # ACTIVE with started_at set) but has blown past its scheduled duration
+    # plus the zombie grace window, force-complete it here so it doesn't
+    # surface in the live-session banner a week later as a stale row.
+    #
+    # Mark feedback SKIPPED rather than scheduling GPT-4o: if the user has
+    # been absent long enough for the zombie check to trip, the transcript
+    # is stale and feedback from it isn't worth the API cost. The
+    # single-session sweep in get_session() still schedules feedback for
+    # users who come back and click Rejoin, so that path is preserved.
+    now = datetime.now(UTC)
+    zombies = [
+        s for s in sessions
+        if s.started_at is not None
+        and s.status in (SessionStatus.PENDING, SessionStatus.ACTIVE)
+        and now > s.started_at + timedelta(
+            seconds=s.duration_minutes.value * 60
+            + settings_sessions.zombie_grace_seconds
+        )
+    ]
+    for s in zombies:
+        s.status = SessionStatus.COMPLETED
+        s.feedback_status = FeedbackStatus.SKIPPED
+        s.ended_at = now
+        logger.info('get_sessions auto-completing zombie session=%s', s.id)
+    if zombies:
+        await db.commit()
+
+    return sessions
 
 
 @router.get(
