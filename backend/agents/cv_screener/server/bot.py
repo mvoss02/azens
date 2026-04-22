@@ -176,7 +176,7 @@ async def run_bot(transport: BaseTransport, body: dict):
         context.add_message(
             {
                 "role": "user",
-                "content": f"{user_name} has just joined the call. Start with giving a short introduction about yourself and ask 1 small talk question before starting to conduct the job interview.",
+                "content": f"{user_name} has just joined. Greet them by first name, spend 15-30 seconds on small talk (weather, how their week's going, where they're calling from), then (after the users responds) slwoly signal you'll begin the interview.",
             }
         )
         await task.queue_frames([LLMRunFrame()])
