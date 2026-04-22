@@ -62,17 +62,21 @@ export class ActiveSessionBannerComponent {
     // finishes. The endpoint itself is fast, but the user explicitly
     // asked for "do this in the background when they click yes."
     //
-    // If the POST somehow fails, the next /session/ refresh (fires on
-    // every /app/* navigation) re-surfaces the banner and the user can
-    // try again. We also eagerly refresh on error to surface that faster
-    // without waiting for the next navigation.
+    // Suppress the service's auto-refresh for 3s so the next /app/*
+    // navigation doesn't race our still-in-flight POST and re-surface
+    // the banner from stale ACTIVE state. If the POST genuinely fails,
+    // the suppress window expires and the next navigation refresh does
+    // surface it again — which is what we want.
     this.endConfirmOpen.set(false);
-    this.live.clearLocal();
+    this.live.clearLocal(3000);
 
     this.live.endSession(s.id).subscribe({
       error: (err) => {
         console.warn('endSession background POST failed:', err);
-        this.live.refresh();
+        // Force a refresh to re-surface the banner for the user to retry.
+        // The `force` flag bypasses the suppress window we set above —
+        // the end didn't stick, so the suppression is no longer valid.
+        this.live.refresh({ force: true });
       },
     });
   }

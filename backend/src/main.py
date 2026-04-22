@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from api.admin import router as router_admin
 from api.auth import router as router_auth
@@ -11,6 +14,7 @@ from api.transcripts import router as router_transcripts
 from api.waitlist import router as router_waitlist
 from core.config import settings as settings_api
 from core.logging import setup_logging
+from core.rate_limit import limiter
 
 # Configure stdlib logging before anything else so import-time log lines
 # (e.g. from services module globals) use our format, not the default.
@@ -21,6 +25,14 @@ app = FastAPI(
     version='0.1.0',
     description='API for Azens. An investment interview helper. Provides Voice Agents that walks you through realistic IB/PE interviews.',
 )
+
+# Rate limiter wiring. `app.state.limiter` is the convention SlowAPI's
+# middleware + decorator look up. The exception handler converts a
+# RateLimitExceeded into a proper 429 response with Retry-After.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

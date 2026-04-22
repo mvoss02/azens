@@ -58,7 +58,16 @@ export class LiveSessionService {
     return url.startsWith('/app/sessions/') && url.endsWith('/room');
   }
 
-  refresh(): void {
+  refresh(opts: { force?: boolean } = {}): void {
+    // Bail if we're inside an optimistic-clear suppress window unless the
+    // caller explicitly overrides (e.g. an /end POST failed and we need
+    // to re-surface the banner so the user can retry, regardless of the
+    // window they optimistically set when they clicked).
+    if (!opts.force && Date.now() < this.suppressRefreshUntil) return;
+    // Clear the suppress window — whichever path made it here, we're
+    // doing a real fetch so any lingering window is moot.
+    this.suppressRefreshUntil = 0;
+
     this.http
       .get<LiveSession[]>(`${environment.apiUrl}/session/`)
       .subscribe({
@@ -81,9 +90,24 @@ export class LiveSessionService {
       });
   }
 
-  /** Optimistic UI clear after a successful cancel — no wait for refresh. */
-  clearLocal(): void {
+  // Suppress refreshes for a short window after an optimistic clear. Without
+  // this, navigating away from the room right after firing /end causes a
+  // race: the navigation-triggered refresh hits `GET /session/` BEFORE the
+  // /end POST has committed server-side, reads the still-ACTIVE state, and
+  // the banner flashes back on — "you just ended a session, here's a banner
+  // saying you have a live one." 3s is long enough to cover the POST's
+  // full round-trip + commit in all reasonable conditions.
+  private suppressRefreshUntil = 0;
+
+  /** Optimistic UI clear. When called with suppressMs > 0, subsequent
+   * refresh() calls are no-ops for that many milliseconds, blocking the
+   * race window where a stale /session/ list would re-surface the
+   * just-ended row. */
+  clearLocal(suppressMs = 0): void {
     this._liveSession.set(null);
+    if (suppressMs > 0) {
+      this.suppressRefreshUntil = Date.now() + suppressMs;
+    }
   }
 
   /**

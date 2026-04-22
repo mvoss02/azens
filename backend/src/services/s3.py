@@ -34,15 +34,6 @@ def generate_upload_url(user_id: uuid.UUID, filename: str) -> tuple[str, str]:
     return url, s3_key
 
 
-def generate_download_url(s3_key: str) -> str:
-    url = s3_client.generate_presigned_url(
-        'get_object',
-        Params={'Bucket': settings_blob.aws_s3_bucket_name, 'Key': s3_key},
-        ExpiresIn=300,
-    )
-    return url
-
-
 def delete_object(s3_key: str) -> None:
     s3_client.delete_object(Bucket=settings_blob.aws_s3_bucket_name, Key=s3_key)
 

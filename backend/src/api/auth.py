@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.deps import get_current_user_id
 from core.config import settings as settings_auth
 from core.database import get_db
+from core.rate_limit import limiter
 from core.security import create_access_token, hash_password, verify_password
 from models.cv import CV
 from models.feedback import Feedback
@@ -31,6 +32,7 @@ from schemas.auth import (
     UserResponse,
 )
 from services.email import send_password_reset_email, send_verification_email
+from services.oauth_state import consume_state, create_state
 from services.s3 import delete_object_best_effort
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,12 @@ _DUMMY_PASSWORD_HASH = hash_password('moritz-is-great')  # any placeholder strin
 @router.post(
     '/signup', response_model=TokenResponse, status_code=status.HTTP_201_CREATED
 )
-async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+@limiter.limit('10/hour')
+async def signup(
+    request: Request,
+    new_user: SignUp,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     # 1. Check if email already taken
     result = await db.execute(select(User).where(User.email == new_user.email))
     if result.scalar_one_or_none():
@@ -78,7 +85,15 @@ async def signup(new_user: SignUp, db: AsyncSession = Depends(get_db)) -> TokenR
 
 
 @router.post('/login', response_model=TokenResponse, status_code=status.HTTP_200_OK)
-async def login(user: LogIn, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+# 20/hour is an aggressive-but-not-annoying ceiling for a real user who
+# fat-fingers their password a few times. Behind it, bcrypt still costs
+# ~150ms per attempt — so even within the limit, an attacker is CPU-bound.
+@limiter.limit('20/hour')
+async def login(
+    request: Request,
+    user: LogIn,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
     # 1. Check if user exists
     result = await db.execute(select(User).where(User.email == user.email))
 
@@ -145,12 +160,17 @@ async def update_me(
 
 @router.get('/google', status_code=status.HTTP_200_OK)
 async def google():
+    # state: short-lived random token bound to this attempt. The callback
+    # below refuses any request whose `state` isn't one we issued here —
+    # blocks OAuth login-CSRF (attacker-generated `code` replayed through
+    # the victim's browser). See services/oauth_state.py for the rationale.
     params = urlencode(
         {
             'client_id': settings_auth.google_client_id,
             'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/google/callback',
             'scope': 'openid email profile',
             'response_type': 'code',
+            'state': create_state(),
         }
     )
 
@@ -158,7 +178,21 @@ async def google():
 
 
 @router.get('/google/callback')
-async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
+async def google_callback(
+    code: str,
+    state: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    # CSRF check: reject any callback whose state wasn't issued by our
+    # /auth/google endpoint (or was already used / expired). consume_state
+    # is atomic single-use — a second callback with the same state
+    # immediately returns False.
+    if not consume_state(state):
+        logger.warning('Google OAuth callback with missing/invalid state')
+        return RedirectResponse(
+            url=f'{settings_auth.frontend_url}/auth/login?error=oauth_failed'
+        )
+
     # All failure modes below bounce the user back to /auth/login with a
     # generic error. We don't surface Google's internal error codes to the
     # UI — they're unhelpful to humans and sometimes leak info about the
@@ -250,6 +284,12 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
     )
     db.add(user)
     await db.flush()
+    # Explicit commit: we're about to hand the browser a JWT for this
+    # user. If the get_db post-yield commit loses (disk full, constraint
+    # violation we didn't catch), the user would have a valid token for a
+    # non-existent DB row — every subsequent request 401s. Commit before
+    # minting the token so at least the rows agree.
+    await db.commit()
 
     token = create_access_token(str(user.id))
     return RedirectResponse(
@@ -259,12 +299,14 @@ async def google_callback(code: str, db: AsyncSession = Depends(get_db)):
 
 @router.get('/linkedin', status_code=status.HTTP_200_OK)
 async def linkedin():
+    # state: same CSRF protection as /auth/google. See services/oauth_state.py.
     params = urlencode(
         {
             'client_id': settings_auth.linkedin_client_id,
             'redirect_uri': f'{settings_auth.backend_url}/api/v1/auth/linkedin/callback',
             'scope': 'openid profile email',
             'response_type': 'code',
+            'state': create_state(),
         }
     )
 
@@ -272,10 +314,19 @@ async def linkedin():
 
 
 @router.get('/linkedin/callback')
-async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)):
+async def linkedin_callback(
+    code: str,
+    state: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
     oauth_failed_redirect = RedirectResponse(
         url=f'{settings_auth.frontend_url}/auth/login?error=oauth_failed'
     )
+
+    # CSRF check — reject callbacks whose state wasn't issued by /auth/linkedin.
+    if not consume_state(state):
+        logger.warning('LinkedIn OAuth callback with missing/invalid state')
+        return oauth_failed_redirect
 
     # 1. Exchange code for access token
     async with httpx.AsyncClient() as client:
@@ -362,6 +413,8 @@ async def linkedin_callback(code: str, db: AsyncSession = Depends(get_db)):
     )
     db.add(user)
     await db.flush()
+    # Commit before minting the JWT — same reasoning as google_callback.
+    await db.commit()
 
     token = create_access_token(str(user.id))
     return RedirectResponse(
@@ -453,7 +506,11 @@ async def resend_verification(
 
 
 @router.post('/forgot-password', status_code=status.HTTP_200_OK)
+# Tight per-IP cap: each triggers an SMTP send. An attacker could otherwise
+# harass arbitrary users with reset emails OR burn our Brevo quota.
+@limiter.limit('5/hour')
 async def forgot_password(
+    request: Request,
     background_tasks: BackgroundTasks,
     body: ForgotPasswordRequest,
     db: AsyncSession = Depends(get_db),
@@ -481,8 +538,14 @@ async def forgot_password(
 
 
 @router.post('/reset-password', status_code=status.HTTP_200_OK)
+# Prevents brute-forcing the password_reset_token URL parameter. 32-byte
+# URL-safe tokens are effectively unguessable, but the limit is cheap
+# insurance and also bounds the CPU cost of bcrypt-hashing new passwords.
+@limiter.limit('20/hour')
 async def reset_password(
-    body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     # Find user by token
     result = await db.execute(

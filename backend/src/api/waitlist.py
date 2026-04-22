@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.rate_limit import limiter
 from models.waitlist import Waitlist
 from schemas.waitlist import WaitlistRequest, WaitlistResponse
 
@@ -13,7 +14,12 @@ router = APIRouter()
 
 
 @router.post('/join', status_code=status.HTTP_200_OK)
+# Limits list-pollution / sender-reputation abuse. Per-IP is lenient
+# enough for classrooms sharing a NAT (10 legit signups/hour) but blocks
+# single-machine automation scripts.
+@limiter.limit('10/hour')
 async def join_waitlist(
+    request: Request,
     body: WaitlistRequest,
     db: AsyncSession = Depends(get_db),
 ) -> WaitlistResponse:

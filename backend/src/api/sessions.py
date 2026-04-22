@@ -27,7 +27,7 @@ from models.user import User
 from prompts.cv_screener import build_cv_screen_interview_prompt
 from schemas.session import SessionRequest, SessionResponse, StartSessionResponse
 from services.cv_parser import parse_cv_from_s3
-from services.daily_service import create_meeting_token, create_room
+from services.daily_service import create_meeting_token, create_room, delete_room
 from services.feedback_generator import generate_and_save_feedback
 from services.pipecat_service import start_bot_session
 
@@ -203,6 +203,12 @@ async def start_session(
             new_sess.pipecat_session_id = pipecat_result.get('session_id')
             new_sess.started_at = datetime.now(UTC)
         except Exception as e:
+            # Pipecat refused / timed out — the Daily room we created a few
+            # lines ago is orphaned. Delete it now so we don't leak quota
+            # (the room would otherwise hang around until its natural `exp`
+            # timestamp, tens of minutes later). Best-effort: delete_room
+            # swallows errors so a second failure doesn't mask the first.
+            await delete_room(meeting_room_dict['name'])
             new_sess.status = SessionStatus.ERROR
             await db.flush()
             raise HTTPException(

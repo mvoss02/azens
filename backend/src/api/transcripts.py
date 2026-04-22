@@ -44,4 +44,11 @@ async def create_log(
     )
     db.add(entry)
     await db.flush()
+    # Explicit commit: the feedback generator runs in a background task off
+    # the /end endpoint and reads transcripts via a FRESH session. Without
+    # an explicit commit here, the last few transcript rows (posted during
+    # the final seconds of the interview) may not yet be visible when
+    # feedback generation starts — producing a feedback report that
+    # ignores the user's closing statements.
+    await db.commit()
     return {'status': 'saved'}

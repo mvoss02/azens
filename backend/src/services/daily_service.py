@@ -48,3 +48,25 @@ async def create_meeting_token(room_name: str, user_name: str) -> str:
         )
         response.raise_for_status()
         return response.json()['token']
+
+
+async def delete_room(room_name: str) -> None:
+    """Delete a Daily room by name. Best-effort: swallows errors so a
+    cleanup caller (e.g. /session/start's Pipecat-fail rollback) can
+    call this without adding a second failure mode on top of the first.
+
+    The room would auto-expire on its own at its `exp` timestamp anyway,
+    but calling this earlier frees the Daily concurrent-room quota and
+    stops the billing clock sooner.
+    """
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.delete(
+                f'{DAILY_API_URL}/rooms/{room_name}',
+                headers=HEADERS,
+            )
+            response.raise_for_status()
+        except Exception:
+            # Intentional swallow — caller is in an error path already
+            # and doesn't want a secondary failure to mask the first.
+            pass

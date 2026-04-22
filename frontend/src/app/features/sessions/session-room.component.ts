@@ -17,6 +17,7 @@ import { DailyTransport } from '@pipecat-ai/daily-transport';
 import { environment } from '../../../environments/environment';
 import { OrbComponent } from '../../shared/components/orb/orb.component';
 import { ConfirmModalComponent } from '../../shared/components/confirm-modal/confirm-modal.component';
+import { LiveSessionService } from '../../core/sessions/live-session.service';
 
 interface SessionDetails {
   id: string;
@@ -60,6 +61,7 @@ export class SessionRoomComponent implements OnInit {
   readonly router = inject(Router);
   private readonly http = inject(HttpClient);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly liveSessionService = inject(LiveSessionService);
 
   @ViewChild('selfVideo') selfVideoEl?: ElementRef<HTMLVideoElement>;
 
@@ -475,6 +477,12 @@ export class SessionRoomComponent implements OnInit {
     this.http
       .post(`${environment.apiUrl}/session/${s.id}/end?error=false`, {})
       .subscribe({ error: () => {} });
+
+    // Optimistically clear the live-session state and suppress refreshes
+    // for a few seconds. Otherwise, the navigation below triggers an
+    // immediate GET /session/ that races the /end POST and resurrects the
+    // banner with stale data (reads PENDING, banner flashes back on).
+    this.liveSessionService.clearLocal(3000);
 
     // Navigate immediately. Feedback page handles the pending state.
     this.router.navigate(['/app/feedback', s.id]);
