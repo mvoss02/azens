@@ -6,10 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from models.feedback import Feedback
 from models.transcript import Transcript
-from sqlalchemy import delete as sql_delete, func, select
+from sqlalchemy import delete as sql_delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.deps import get_current_user_id, get_subscribed_user_id
+from api.deps import SessionCaller, get_current_user_id, get_subscribed_user_id, get_session_caller
 from core.config import settings as settings_sessions
 from core.database import get_db
 from models.cv import CV
@@ -225,31 +225,30 @@ async def start_session(
     return new_sess
 
 
-@router.post(
-    '/{session_id}/end', response_model=SessionResponse, status_code=status.HTTP_200_OK
-)
+@router.post('/{session_id}/end', response_model=SessionResponse, status_code=status.HTTP_200_OK)
 async def end_session(
     session_id: UUID,
     background_tasks: BackgroundTasks,
+    caller: SessionCaller = Depends(get_session_caller),
     error: bool = False,
-    user_id: UUID = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ) -> SessionResponse:
-    result = await db.execute(
-        select(Session).where(Session.id == session_id, Session.user_id == user_id)
-    )
+    result = await db.execute(select(Session).where(Session.id == session_id))
     curr_sess = result.scalar_one_or_none()
 
     if not curr_sess:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
-
-    now = datetime.now(UTC)
-
+    
+    # Only check ownership for user callers; Server is trusted globally
+    if caller.kind == "user" and curr_sess.user_id != caller.user_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN)
+    
     # Did the user actually interview long enough for feedback to be worth
     # generating? We gate on a fraction of the scheduled duration rather than
     # a fixed minute count so a 90-min superday and a 15-min warm-up both get
     # sensible thresholds. `started_at` can be None if the bot never connected
     # — in that case nothing happened to give feedback on.
+    now = datetime.now(UTC)
     scheduled_seconds = curr_sess.duration_minutes.value * 60
     actual_seconds = (
         (now - curr_sess.started_at).total_seconds() if curr_sess.started_at else 0
@@ -258,37 +257,60 @@ async def end_session(
     too_short = actual_seconds < min_seconds
 
     if error:
-        curr_sess.status = SessionStatus.ERROR
-        curr_sess.feedback_status = FeedbackStatus.SKIPPED
+        target_status = SessionStatus.ERROR
+        target_feedback_status = FeedbackStatus.SKIPPED
     elif too_short:
-        # Ended cleanly but barely talked — mark complete, skip feedback.
-        # Log it so we can see how often this trips (might want to tune the
-        # threshold if it fires for real sessions).
         logger.info(
             'end_session skipping feedback session_id=%s actual_s=%.1f min_s=%.1f',
             session_id,
             actual_seconds,
             min_seconds,
         )
-        curr_sess.status = SessionStatus.COMPLETED
-        curr_sess.feedback_status = FeedbackStatus.SKIPPED
+        target_status = SessionStatus.COMPLETED
+        target_feedback_status = FeedbackStatus.SKIPPED
     else:
-        curr_sess.status = SessionStatus.COMPLETED
-        curr_sess.feedback_status = FeedbackStatus.PENDING
-        background_tasks.add_task(generate_and_save_feedback, session_id)
+        target_status = SessionStatus.COMPLETED
+        target_feedback_status = FeedbackStatus.PENDING
+        
+    cas_stmt = (
+        update(Session)
+        .where(
+            Session.id == session_id,
+            Session.status.in_([SessionStatus.PENDING, SessionStatus.ACTIVE]),
+        )
+        .values(
+            status=target_status,
+            feedback_status=target_feedback_status,
+            ended_at=now,
+        )
+        .returning(Session)
+        .execution_options(synchronize_session=False)
+    )
+    cas_result = await db.execute(cas_stmt)
+    updated_sess = cas_result.scalar_one_or_none()
 
-    curr_sess.ended_at = now
+    if updated_sess is not None:
+        # CAS won: we are the only writer that flipped the row. Now (and only
+        # now) is it safe to schedule feedback.
+        if target_feedback_status == FeedbackStatus.PENDING:
+            background_tasks.add_task(generate_and_save_feedback, session_id)
+        response_sess = updated_sess
+    else:
+        # CAS lost: another caller already terminated this session. Don't
+        # 4xx, the session IS ended, just not by us. Re-read so the response
+        # reflects the row's actual current state (not our stale snapshot).
+        response_sess = curr_sess
 
-    await db.flush()
-    # Explicit commit: without it, get_db's post-yield commit runs AFTER the
-    # response is sent. The frontend's follow-up /session/ GET (triggered on
-    # the next navigation) would then race the commit and see the old
-    # ACTIVE state — making the live-session banner reappear after the user
-    # thought they'd ended the session.
     await db.commit()
-    await db.refresh(curr_sess)
+    await db.refresh(response_sess)
 
-    return curr_sess
+    logger.info(
+        'end_session session=%s caller=%s won_cas=%s target=(%s,%s)',
+        session_id, caller.kind, updated_sess is not None,
+        target_status.value, target_feedback_status.value,
+    )
+
+    return response_sess
 
 
 @router.get('/', response_model=list[SessionResponse], status_code=status.HTTP_200_OK)

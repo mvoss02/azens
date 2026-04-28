@@ -215,7 +215,7 @@ async def run_bot(transport: BaseTransport, body: dict):
             try:
                 async with httpx.AsyncClient() as client:
                     await client.post(
-                        f"{backend_url}/api/v1/transcripts",
+                        f"{backend_url}/api/v1/transcripts/",
                         json={
                             "session_id": session_id,
                             "role": "user",
@@ -233,7 +233,7 @@ async def run_bot(transport: BaseTransport, body: dict):
             try:
                 async with httpx.AsyncClient() as client:
                     await client.post(
-                        f"{backend_url}/api/v1/transcripts",
+                        f"{backend_url}/api/v1/transcripts/",
                         json={
                             "session_id": session_id,
                             "role": "assistant",
@@ -259,7 +259,20 @@ async def run_bot(transport: BaseTransport, body: dict):
 
     runner = PipelineRunner(handle_sigint=False)
 
-    await runner.run(task)
+    try:
+        await runner.run(task)
+    finally:
+        if session_id and backend_url:
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"{backend_url}/api/v1/session/{session_id}/end",
+                        headers={"X-Service-Key": service_key},
+                        timeout=10.0,
+                    )
+                logger.info(f"Notified backend of session end: {session_id}")
+            except Exception as e:
+                logger.error(f"Failed to notify backend of session end: {e}")
 
 
 async def bot(runner_args: RunnerArguments):
