@@ -16,7 +16,10 @@ class Feedback(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey('sessions.id'), nullable=False, unique=True
+        UUID(as_uuid=True),
+        ForeignKey('sessions.id', ondelete='CASCADE'),
+        nullable=False,
+        unique=True,
     )
 
     feedback_type: Mapped[SessionType] = mapped_column(

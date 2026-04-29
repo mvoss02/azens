@@ -221,23 +221,25 @@ export class SessionRoomComponent implements OnInit {
       return;
     }
 
-    // Rejoin case: if the session has already been running, jump into the
-    // user's correct position on the timer. We gate on `started_at` alone
-    // rather than `status === 'active'` because the backend doesn't
-    // explicitly flip PENDING → ACTIVE anywhere — a bot-started session
-    // stays PENDING + started_at=<timestamp>. The banner detects both
-    // states as "live", and so do we here. Without this fix, rejoining a
-    // PENDING session starts the clock from 0.
+    // Rejoin detection. Backend's `started_at` is set in /session/start
+    // (when Pipecat is told to spin up the bot), which is BEFORE the bot
+    // has actually cold-started + joined the room — typically a 10-25s
+    // gap. So we can't use started_at for the timer's zero point on a
+    // fresh session, or the user sees "00:22" the moment Alex first
+    // speaks. Two cases:
+    //   - elapsed > 10s → genuine rejoin (the bot has been talking
+    //     without us). Initialize the clock from started_at and skip
+    //     the joining chrome since the interview is well past its opener.
+    //   - elapsed <= 10s → fresh session in cold-start. Leave the timer
+    //     at 0; startTimer() will be called from onBotStartedSpeaking,
+    //     so the first tick lines up with Alex's first word.
     if (s.started_at) {
       const elapsed = Math.max(
         0,
         Math.floor((Date.now() - new Date(s.started_at).getTime()) / 1000),
       );
-      this.elapsedSeconds.set(elapsed);
-      // If we're arriving >10s into the session, this is a rejoin — the
-      // bot has been talking without us. Skip the JOINING caption; the
-      // interview is already in progress from the server's perspective.
       if (elapsed > 10) {
+        this.elapsedSeconds.set(elapsed);
         this.hasBotSpoken.set(true);
       }
     }
@@ -282,13 +284,16 @@ export class SessionRoomComponent implements OnInit {
         onBotDisconnected: () => this.onBotDisconnected(),
         // First speaking event — this is the real "Alex is live" moment.
         // Flip the view from joining → connected here (not on WebRTC
-        // connect, which is ~10-15s too early on a cold container).
-        // Fires on every bot turn; guard so we only react once.
+        // connect, which is ~10-15s too early on a cold container) AND
+        // start the timer here so its zero point lines up with Alex's
+        // first word, not with the cold-start window. Fires on every
+        // bot turn; guard so we only react once.
         onBotStartedSpeaking: () => {
           if (!this.hasBotSpoken()) {
             this.hasBotSpoken.set(true);
             this.clearWarmingTimeout();
             this.view.set('connected');
+            this.startTimer();
           }
         },
         onTrackStarted: (track, participant) => this.onTrackStarted(track, participant),
@@ -317,17 +322,24 @@ export class SessionRoomComponent implements OnInit {
 
     // Rejoin case: if hasBotSpoken was already set from the started_at
     // check in handleSessionFetched (elapsed > 10s), the bot is long
-    // past its opener — skip the "waiting for Alex" screen and drop the
-    // user straight into the full room.
+    // past its opener — skip the "waiting for Alex" screen, drop the
+    // user straight into the full room, and start the timer immediately
+    // (elapsed was initialized from started_at, so it's already at the
+    // correct value).
     if (this.hasBotSpoken()) {
       this.view.set('connected');
+      this.startTimer();
     } else {
-      // Fallback: if the bot never speaks (TTS init failed, network weirdness),
-      // flip to connected after a deadline so the user can at least click
-      // Leave. Without this, stuck warming = stuck page.
+      // Fresh session: don't start the timer yet. We wait for
+      // onBotStartedSpeaking — the real "interview begins" moment.
+      // Fallback: if the bot never speaks (TTS init failed, network
+      // weirdness), flip to connected + start the timer after a deadline
+      // so the user can at least see the timer ticking and click Leave.
+      // Without this, stuck warming = stuck page with a frozen 00:00.
       this.warmingTimeoutId = setTimeout(() => {
         if (!this.hasBotSpoken()) {
           this.view.set('connected');
+          this.startTimer();
         }
       }, SessionRoomComponent.WARMING_FALLBACK_MS);
     }
@@ -341,8 +353,13 @@ export class SessionRoomComponent implements OnInit {
     // visibilitychange below so the lock can be re-acquired if the user
     // tabs away and comes back.
     void this.acquireWakeLock();
-    // Start the ticking timer. It reflects the user's clock, not the bot's
-    // — bot-side wrap-up is independent.
+  }
+
+  // Idempotent — multiple paths can call (rejoin from onConnected, fresh
+  // from onBotStartedSpeaking, fallback from the warming timeout). Whoever
+  // wins the race starts the interval; subsequent calls are no-ops.
+  private startTimer(): void {
+    if (this.timerIntervalId !== null) return;
     this.timerIntervalId = setInterval(() => {
       this.elapsedSeconds.update((s) => s + 1);
       // Hard-stop safety: if we're past the scheduled duration by 30s AND

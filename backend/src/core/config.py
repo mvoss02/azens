@@ -33,7 +33,13 @@ class Settings(BaseSettings):
     secret_key: str
 
     # AUTH
-    access_token_expire_minutes: int = 30  # min
+    # Long enough that a single interview (max 90 min superday) can complete
+    # without the token aging out mid-session. With no refresh-token flow yet
+    # (see tech debt), this is the only knob — too short and users get
+    # punted to /login during a long interview, too long and a leaked token
+    # stays valid longer. 120 covers the worst case with a comfortable
+    # margin; revisit when refresh tokens land.
+    access_token_expire_minutes: int = 120  # min
     verification_token_ttl_hours: int = 24
     resend_verification_cooldown_seconds: int = 60
 

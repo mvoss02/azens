@@ -4,9 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from models.feedback import Feedback
-from models.transcript import Transcript
-from sqlalchemy import delete as sql_delete, func, select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import SessionCaller, get_current_user_id, get_subscribed_user_id, get_session_caller
@@ -456,15 +454,10 @@ async def delete_session(
     if not session:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail='Session not found')
 
-    # Bulk-delete children via DELETE statements rather than fetching +
-    # looping. Transcript has N rows per session (one per turn) so a
-    # scalar_one_or_none would crash on any real session. Feedback has 0
-    # or 1 — also handled cleanly by a bulk delete (no-op if absent).
-    await db.execute(
-        sql_delete(Transcript).where(Transcript.session_id == session_id)
-    )
-    await db.execute(
-        sql_delete(Feedback).where(Feedback.session_id == session_id)
-    )
+    # Children (transcripts, feedback) are removed automatically by DB-level
+    # ON DELETE CASCADE on their session_id FKs (migration
+    # f1a2b3c4d5e6_session_cascade_delete). Trust the DB instead of issuing
+    # explicit bulk-deletes here — single source of truth, also covers
+    # delete paths outside this endpoint.
     await db.delete(session)
     await db.commit()

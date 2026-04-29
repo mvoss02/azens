@@ -21,7 +21,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // The component that fired the original request still gets the 401
       // in its .subscribe error handler, so any inline UI state resets too.
       if (err instanceof HttpErrorResponse && err.status === 401 && token) {
-        auth.logout();
+        // Skip the bounce when the failing call is the Leave-button's
+        // /session/:id/end POST. That call is fire-and-forget and the
+        // bot's service-key webhook ends the session authoritatively, so
+        // a 401 here means the user's token aged out mid-interview — not
+        // a security event. Punting them to the landing page when they
+        // just finished a 30-min session is hostile UX.
+        const isSessionEnd = /\/session\/[^/]+\/end/.test(req.url);
+        if (!isSessionEnd) {
+          auth.logout();
+        }
       }
       return throwError(() => err);
     }),
