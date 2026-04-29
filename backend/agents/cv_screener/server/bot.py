@@ -26,6 +26,8 @@ import os
 import httpx
 from dotenv import load_dotenv
 from loguru import logger
+from pipecat.adapters.schemas.function_schema import FunctionSchema
+from pipecat.adapters.schemas.tools_schema import ToolsSchema
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import EndFrame, LLMRunFrame, TTSSpeakFrame
@@ -42,6 +44,7 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.runner.types import DailyRunnerArguments, RunnerArguments, SmallWebRTCRunnerArguments
 from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.deepgram.stt import DeepgramSTTService
+from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
 from pipecat.transports.daily.transport import DailyParams, DailyTransport
@@ -133,7 +136,32 @@ async def run_bot(transport: BaseTransport, body: dict):
         ),
     )
 
-    context = LLMContext()
+    # Tool: lets the LLM end the interview itself when the candidate clearly
+    # signals they're done. The system prompt (cv_screener.py) instructs the
+    # LLM to say a personalised goodbye FIRST, then call this. OpenAI's
+    # streaming emits text content before tool_calls in the same response,
+    # so by the time the handler fires the goodbye text is already in the
+    # TTS pipeline — queueing EndFrame here propagates behind it and the
+    # bot disconnects cleanly after the goodbye finishes playing.
+    #
+    # NOTE: the description here and the prompt's "Ending the interview"
+    # section are redundant by design — the LLM may rely on either or both
+    # when deciding whether to call. If you change one, change both.
+    end_interview_function = FunctionSchema(
+        name="end_interview",
+        description=(
+            "Call this AFTER you have said your goodbye to the candidate. "
+            "Terminates the voice session. Only call when the candidate has "
+            "clearly indicated the interview is over (said goodbye, asked "
+            "to stop, etc.). Never call proactively or in response to a "
+            "pause or a moment of hesitation."
+        ),
+        properties={},
+        required=[],
+    )
+    tools = ToolsSchema(standard_tools=[end_interview_function])
+
+    context = LLMContext(tools=tools)
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
@@ -243,6 +271,28 @@ async def run_bot(transport: BaseTransport, body: dict):
                     )
             except Exception as e:
                 logger.error(f"Failed to save transcript: {e}")
+
+    async def end_interview_handler(params: FunctionCallParams):
+        # The LLM has already streamed its goodbye text into the pipeline
+        # (OpenAI emits content before tool_calls in a single response), so
+        # the goodbye is already on its way through TTS. result_callback
+        # closes the tool-call protocol cleanly; queueing EndFrame onto the
+        # pipeline task propagates downstream behind the in-flight TTS
+        # frames, letting the goodbye finish playing before transport
+        # disconnects.
+        logger.info("end_interview tool called — closing session")
+        await params.result_callback({"status": "ended"})
+        await task.queue_frames([EndFrame()])
+
+    # cancel_on_interruption=False: once the LLM has decided to end (after
+    # the prompt's confirmation step), don't abort the close-out if the
+    # user happens to make a noise mid-shutdown. The tool call is
+    # commitment, not a tentative request.
+    llm.register_function(
+        "end_interview",
+        end_interview_handler,
+        cancel_on_interruption=False,
+    )
 
     # Schedule graceful wrap-up timers
     asyncio.create_task(
