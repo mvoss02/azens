@@ -9,7 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 
 // Shape of what session-setup hands off through router state. Kept flat and
@@ -28,7 +28,7 @@ export interface PendingSessionPayload {
 @Component({
   selector: 'app-session-confirm',
   standalone: true,
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './session-confirm.component.html',
   styleUrl: './session-confirm.component.css',
 })
@@ -43,6 +43,13 @@ export class SessionConfirmComponent implements OnInit {
   payload = signal<PendingSessionPayload | null>(null);
   isStarting = signal(false);
   errorMessage = signal('');
+
+  // True for the two billing-related 403s the backend can return on
+  // /session/start: monthly limit reached, or no/expired subscription.
+  // Drives a richer error block in the template that includes a "Manage
+  // subscription" CTA pointing at /app/billing. Other errors (verify
+  // email, validation) fall through to the plain error box.
+  showBillingCta = signal(false);
 
   // Device-check state. This whole block used to live in session-room's
   // "lobby" view. We pulled it forward so the session is only created AFTER
@@ -230,6 +237,7 @@ export class SessionConfirmComponent implements OnInit {
     // has been client-only — we want exactly one chance to do it right.
     this.isStarting.set(true);
     this.errorMessage.set('');
+    this.showBillingCta.set(false);
 
     // Strip the display-only cv_filename before hitting the backend — the
     // /session/start schema doesn't know about it.
@@ -264,8 +272,17 @@ export class SessionConfirmComponent implements OnInit {
           );
         },
         error: (err) => {
-          this.errorMessage.set(
-            err.error?.detail ?? 'Failed to start session. Please try again.',
+          const detail =
+            err.error?.detail ?? 'Failed to start session. Please try again.';
+          this.errorMessage.set(detail);
+          // Detect billing-actionable 403s. Substring match is brittle —
+          // if you change the wording in sessions.py (limit reached) or
+          // deps.py (subscription required), update these patterns too.
+          // The "verify email" 403 deliberately doesn't match — that
+          // user goes to /verify, not /billing.
+          this.showBillingCta.set(
+            err.status === 403 &&
+              /limit reached|active subscription/i.test(detail),
           );
           this.isStarting.set(false);
           // Best-effort: re-attach mic so the user's still-visible meter

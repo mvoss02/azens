@@ -235,6 +235,63 @@
   color: var(--color-error);
 }
 
+/* Variant for billing-actionable errors (limit reached, no subscription).
+   Same warning tint as .error-box but laid out as content + CTA, with the
+   CTA in amber to draw the eye to the resolution path rather than the
+   problem. Wraps to two stacked rows on narrow viewports. */
+.error-box-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+
+.error-cta-content {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.error-cta-title {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-error);
+  margin-bottom: 2px;
+}
+
+.error-cta-body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.error-cta-btn {
+  /* Pill button matching the global design system. Amber draws the eye
+     toward the resolution path. text-decoration:none clears the
+     anchor-default underline since this is rendered as a button. */
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--color-amber);
+  color: var(--color-bg-alt);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform var(--transition), background var(--transition);
+}
+
+.error-cta-btn:hover {
+  background: var(--color-amber-light);
+  transform: translateY(-1px);
+}
+
 /* ── Actions ───────────────────────────────────────── */
 
 .actions {

@@ -101,7 +101,19 @@
     </div>
 
     @if (errorMessage()) {
-      <div class="error-box" role="alert">{{ errorMessage() }}</div>
+      @if (showBillingCta()) {
+        <div class="error-box error-box-cta" role="alert">
+          <div class="error-cta-content">
+            <strong class="error-cta-title">Subscription action needed</strong>
+            <p class="error-cta-body">{{ errorMessage() }}</p>
+          </div>
+          <a class="error-cta-btn" routerLink="/app/billing">
+            Manage subscription
+          </a>
+        </div>
+      } @else {
+        <div class="error-box" role="alert">{{ errorMessage() }}</div>
+      }
     }
 
     <div class="actions">
