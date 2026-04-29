@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,17 @@ class Subscription(Base):
     )
 
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Sessions started in the current Stripe billing period. Incremented
+    # atomically in /session/start (compare-and-increment against the tier's
+    # cap from config). Reset to 0 on the `invoice.paid` webhook for
+    # billing_reason='subscription_cycle' — i.e. when Stripe charges the
+    # next period. Deletion of a session does NOT decrement (option C in
+    # the design discussion: counter tracks "sessions started", not
+    # "sessions currently in DB", so users can't game the cap by deleting).
+    sessions_used_this_period: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default='0'
+    )
 
     # Timestamp of the most recent Stripe event applied to this row.
     # Used to reject stale/out-of-order webhook deliveries.

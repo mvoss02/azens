@@ -20,6 +20,14 @@ class Settings(BaseSettings):
 
     zombie_grace_seconds: int = 60
 
+    # SESSION LIMITS (per calendar month, per subscription tier)
+    # None = unlimited. The mapping from SubscriptionPlan enum to these
+    # values lives in api/sessions.py::_monthly_session_limit — keep the
+    # tiers and the values in lockstep when adjusting pricing or plans.
+    session_limit_analyst: int = 6
+    session_limit_associate: int = 15
+    session_limit_managing_director: int | None = None
+
     # FEEDBACK
     # If the user ends a session after less than this fraction of the scheduled
     # duration (e.g. 0.10 → 3 min into a 30 min interview), skip GPT-4o feedback
@@ -42,6 +50,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 120  # min
     verification_token_ttl_hours: int = 24
     resend_verification_cooldown_seconds: int = 60
+    password_reset_token_ttl_hours: int = 1
 
     # GOOGLE AUTH
     google_client_id: str
@@ -86,6 +95,7 @@ class Settings(BaseSettings):
     # DAILY
     daily_api_key: str
     daily_room_url: str
+    daily_room_grace_seconds: int = 600
 
     # CARTESIA (STT/TTS)
     cartesia_api_key: str

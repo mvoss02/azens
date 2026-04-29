@@ -33,7 +33,8 @@ def create_access_token(subject: str) -> str:
     """
     payload = {
         'sub': subject,  # subject — who this token is for
-        'exp': datetime.now(UTC) + timedelta(minutes=30),  # expiration
+        'exp': datetime.now(UTC)
+        + timedelta(minutes=settings_auth.access_token_expire_minutes),
         'type': 'access',  # so we can distinguish access vs refresh tokens
     }
     token = jwt.encode(payload, settings_auth.secret_key, algorithm=ALGORITHM)

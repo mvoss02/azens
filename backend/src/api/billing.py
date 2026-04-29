@@ -56,6 +56,27 @@ PRICE_TO_CYCLE: dict[str, str] = {
 }
 
 
+def _invoice_subscription_id(invoice) -> str | None:
+    """Read invoice.subscription tolerating both Stripe API shapes.
+
+    Older API: lives directly on the invoice. Newer (~2024+): may have
+    moved to invoice.lines.data[0].subscription, mirroring the same
+    relocation that `_period_end_ts` handles. Try both, return None if
+    neither — caller should treat that as an unknown payload and skip.
+    Bracket access (not .get()) because StripeObject overrides __getattr__.
+    """
+    try:
+        sub_id = invoice['subscription']
+        if sub_id:
+            return sub_id
+    except (KeyError, TypeError):
+        pass
+    try:
+        return invoice['lines']['data'][0]['subscription']
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 def _period_end_ts(stripe_sub) -> int | None:
     """Read `current_period_end` tolerating both Stripe API shapes.
 
@@ -270,6 +291,62 @@ async def _dispatch_stripe_event(
             sub.current_period_end = datetime.fromtimestamp(period_end, tz=UTC)
 
         sub.last_stripe_event_at = event_created
+
+    elif event['type'] == 'invoice.paid':
+        # New billing period starting → reset the session counter for a
+        # fresh allowance. Two billing_reasons trigger a reset:
+        #   - subscription_cycle: recurring renewal (the common case).
+        #   - subscription_create: first invoice of a brand-new subscription
+        #     OR resubscribe after cancellation. The latter is why we don't
+        #     skip — a resubscribed user mustn't inherit the counter from
+        #     before they cancelled.
+        # Skipped: subscription_update (plan change mid-period — keep the
+        # counter so an upgrade doesn't refund slots already used), manual,
+        # everything else.
+        invoice = event['data']['object']
+        billing_reason = invoice.get('billing_reason')
+        if billing_reason not in ('subscription_cycle', 'subscription_create'):
+            logger.info(
+                'invoice.paid skipped — billing_reason=%s', billing_reason
+            )
+            return {'received': True}
+
+        stripe_sub_id = _invoice_subscription_id(invoice)
+        if not stripe_sub_id:
+            logger.warning('invoice.paid has no subscription id — skipping')
+            return {'received': True}
+
+        result = await db.execute(
+            select(Subscription).where(
+                Subscription.stripe_subscription_id == stripe_sub_id
+            )
+        )
+        sub = result.scalar_one_or_none()
+
+        # Race: invoice.paid can arrive before checkout.session.completed for
+        # the very first payment. Ack so Stripe stops retrying — counter is
+        # 0 by default on a new row, so missing this reset is a no-op.
+        if not sub:
+            logger.warning(
+                'invoice.paid for unknown sub %s — acking', stripe_sub_id
+            )
+            return {'received': True}
+
+        # Stale-event guard mirrors the other branches. Without it, a
+        # delayed invoice.paid replay could reset the counter mid-period
+        # and gift the user a free allowance.
+        if sub.last_stripe_event_at and sub.last_stripe_event_at >= event_created:
+            logger.warning(
+                'Stale invoice.paid for sub %s — skipping', stripe_sub_id
+            )
+            return {'received': True}
+
+        sub.sessions_used_this_period = 0
+        sub.last_stripe_event_at = event_created
+        logger.info(
+            'Reset session counter for sub %s on billing-period renewal',
+            stripe_sub_id,
+        )
 
     elif event['type'] == 'customer.subscription.deleted':
         stripe_sub = event['data']['object']

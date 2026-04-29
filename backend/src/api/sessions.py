@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.deps import SessionCaller, get_current_user_id, get_subscribed_user_id, get_session_caller
@@ -19,8 +19,10 @@ from models.enums import (
     SessionDuration,
     SessionStatus,
     SessionType,
+    SubscriptionPlan,
 )
 from models.session import Session
+from models.subscription import Subscription
 from models.user import User
 from prompts.cv_screener import build_cv_screen_interview_prompt
 from schemas.session import SessionRequest, SessionResponse, StartSessionResponse
@@ -32,6 +34,24 @@ from services.pipecat_service import start_bot_session
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _monthly_session_limit(plan: SubscriptionPlan) -> int | None:
+    """Look up the per-month session cap for a subscription tier.
+
+    Returns None for unlimited (currently MD only). Source values live in
+    config.py — change them there, not here, so prod tunes don't need a
+    redeploy. This wrapper exists because pydantic-settings can't natively
+    hold an enum-keyed dict, so we keep the structural mapping (plan →
+    setting name) in code and the values in config.
+    """
+    return {
+        SubscriptionPlan.ANALYST: settings_sessions.session_limit_analyst,
+        SubscriptionPlan.ASSOCIATE: settings_sessions.session_limit_associate,
+        SubscriptionPlan.MANAGING_DIRECTOR: (
+            settings_sessions.session_limit_managing_director
+        ),
+    }[plan]
 
 
 @router.post(
@@ -110,24 +130,53 @@ async def start_session(
                         detail='Failed to parse CV. Please retry from the CV page.',
                     ) from exc
 
-    # Check count of sessions taken (this month)
-    first_of_month = datetime.now(UTC).replace(
-        day=1, hour=0, minute=0, second=0, microsecond=0
+    # Per-tier monthly cap, enforced via an atomic compare-and-increment on
+    # the subscription's billing-period counter. The counter is the source
+    # of truth — never decremented on session delete (option C in the
+    # design discussion), reset to 0 on the Stripe invoice.paid webhook
+    # for billing_reason='subscription_cycle'. get_subscribed_user_id
+    # already verified an active subscription, so .scalar_one() is safe
+    # for the plan lookup.
+    plan_result = await db.execute(
+        select(Subscription.plan).where(Subscription.user_id == user_id)
     )
+    plan = plan_result.scalar_one()
+    monthly_limit = _monthly_session_limit(plan)
 
-    count = await db.execute(
-        select(func.count())
-        .select_from(Session)
-        .where(
-            Session.user_id == user_id,
-            Session.created_at >= first_of_month,
-            Session.status.in_([SessionStatus.COMPLETED, SessionStatus.ACTIVE]),
+    if monthly_limit is None:
+        # Unlimited plan (currently MD): increment for accounting/visibility
+        # but no cap to enforce. No CAS needed.
+        await db.execute(
+            update(Subscription)
+            .where(Subscription.user_id == user_id)
+            .values(
+                sessions_used_this_period=Subscription.sessions_used_this_period + 1
+            )
         )
-    )
-    session_count = count.scalar()
-
-    if session_count >= 15:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail='Too many sessions')
+    else:
+        # Compare-and-increment in a single SQL UPDATE: bump the counter
+        # only if it's still under the cap. If two parallel /session/start
+        # calls race, exactly one wins and the other gets a 0-row result.
+        # Same pattern as the /end endpoint's status CAS.
+        cas_result = await db.execute(
+            update(Subscription)
+            .where(
+                Subscription.user_id == user_id,
+                Subscription.sessions_used_this_period < monthly_limit,
+            )
+            .values(
+                sessions_used_this_period=Subscription.sessions_used_this_period + 1
+            )
+            .returning(Subscription.sessions_used_this_period)
+        )
+        if cas_result.scalar_one_or_none() is None:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f'Monthly session limit reached ({monthly_limit} for '
+                    'your plan). Upgrade or wait until next billing period.'
+                ),
+            )
 
     # Create new session
     new_sess = Session(
@@ -145,7 +194,7 @@ async def start_session(
     # Get room and token
     try:
         meeting_room_dict = await create_room(
-            expires_in_seconds=body.duration_minutes.value * 60 + 600
+            expires_in_seconds=body.duration_minutes.value * 60 + settings_sessions.daily_room_grace_seconds
         )
         user_token, bot_token = await asyncio.gather(
             create_meeting_token(

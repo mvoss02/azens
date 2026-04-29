@@ -525,7 +525,7 @@ async def forgot_password(
 
     # Generate reset token and expiry
     reset_token = secrets.token_urlsafe(32)
-    reset_expires = datetime.now(UTC) + timedelta(hours=1)
+    reset_expires = datetime.now(UTC) + timedelta(hours=settings_auth.password_reset_token_ttl_hours)
 
     # Mark token and expiry
     user.password_reset_token = reset_token
