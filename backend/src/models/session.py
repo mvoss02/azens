@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, Enum, ForeignKey, String, func, text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
@@ -40,6 +40,18 @@ class Session(Base):
     # report vs keep showing "Generating…".
     feedback_status: Mapped[FeedbackStatus] = mapped_column(
         Enum(FeedbackStatus), nullable=False, default=FeedbackStatus.PENDING
+    )
+    
+    # Per-session adaptive drill history. List of {question_id, verdict}
+    # objects appended by the backend's /next-question endpoint each time
+    # the bot asks the LLM "what's next." Drives the running streak that
+    # picks the next difficulty, AND drives the post-session feedback
+    # generator (which fetches the Question rows by these IDs and grades
+    # the candidate's transcript against each model answer). Empty list
+    # for non-drill sessions.
+    questions_asked: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list,
+    server_default=text("'[]'::jsonb")
     )
 
     # Snapshot of user's settings at time of session — user may change these later
