@@ -1,4 +1,4 @@
-agent_name = "cv-screener"
+agent_name = "knowledge-drill"
 secret_set = "pipecat-agent-secrets"
 agent_profile = "agent-1x"
 [krisp_viva]

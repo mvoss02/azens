@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: BSD 2-Clause License
 #
 
-"""cv_screener - Pipecat Voice Agent
+"""knowledge_drill - Pipecat Voice Agent
 
 This bot uses a cascade pipeline: Speech-to-Text → LLM → Text-to-Speech
 
@@ -137,7 +137,7 @@ async def run_bot(transport: BaseTransport, body: dict):
     )
 
     # Tool: lets the LLM end the interview itself when the candidate clearly
-    # signals they're done. The system prompt (cv_screener.py) instructs the
+    # signals they're done. The system prompt (knowledge_drill.py) instructs the
     # LLM to say a personalised goodbye FIRST, then call this. OpenAI's
     # streaming emits text content before tool_calls in the same response,
     # so by the time the handler fires the goodbye text is already in the
